@@ -139,7 +139,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      {/* Top Header */}
+      
       <div className="text-center space-y-3">
         <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
           Formulario Oficial de Inscripcion
@@ -154,7 +154,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Left 50%: Program Title FIRST, followed by Program Image */}
+        
         <div className="lg:sticky lg:top-8 p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-2xl space-y-6 overflow-hidden relative">
           <div className="relative z-10 space-y-3">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 border border-blue-400/30 text-blue-300 uppercase tracking-wider">
@@ -177,7 +177,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
           )}
         </div>
 
-      {/* Right 50%: Form Fields */}
+      
       <form onSubmit={handleSubmit} className="space-y-8">
         {error && (
           <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-semibold">
@@ -185,7 +185,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
           </div>
         )}
 
-      {/* Section 1: Personal Info */}
+      
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
           <User className="w-4 h-4 text-blue-500" /> 1. Datos Personales de Identidad
@@ -296,7 +296,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
         </div>
       </div>
 
-      {/* Section 2: Contact & Address */}
+      
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
           <Phone className="w-4 h-4 text-indigo-500" /> 2. Datos de Contacto y Residencia
@@ -385,7 +385,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
         </div>
       </div>
 
-      {/* Section 3: Professional & Work */}
+      
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
           <GraduationCap className="w-4 h-4 text-emerald-500" /> 3. Perfil Académico y Experiencia Laboral
@@ -479,7 +479,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
         </div>
       </div>
 
-      {/* Section 4: Preferences & Terms */}
+      
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 text-xs">
         <div>
           <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
