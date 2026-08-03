@@ -1,0 +1,198 @@
+// Prisma Schema for Enterprise Postgraduate Registration & Sales CRM
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  ADMIN
+  ASESOR
+}
+
+enum ProgramType {
+  CURSO
+  DIPLOMADO
+  MAESTRIA
+  ESPECIALIDAD
+  DOCTORADO
+}
+
+enum Modality {
+  PRESENCIAL
+  VIRTUAL
+  SEMIPRESENCIAL
+}
+
+enum RegistrationStatus {
+  NUEVO
+  CONTACTADO
+  DOC_PENDIENTE
+  COMPLETO
+  MATRICULADO
+  DESCARTADO
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      RoleName @unique
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  active    Boolean  @default(true)
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+
+  links         Link[]
+  registrations Registration[]
+  statusChanges StatusHistory[]
+  auditLogs     AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([roleId])
+}
+
+model Program {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  type        ProgramType @default(MAESTRIA)
+  description String?
+  imageUrl    String?
+  active      Boolean     @default(true)
+
+  links         Link[]
+  registrations Registration[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+}
+
+model Link {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  advisorId  String
+  advisor    User     @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  programId  String
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  active     Boolean  @default(true)
+  clickCount Int      @default(0)
+
+  registrations Registration[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([advisorId])
+  @@index([programId])
+}
+
+model Registration {
+  id            String             @id @default(uuid())
+  linkId        String?
+  link          Link?              @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  advisorId     String
+  advisor       User               @relation(fields: [advisorId], references: [id], onDelete: Restrict)
+  programId     String
+  program       Program            @relation(fields: [programId], references: [id], onDelete: Restrict)
+
+  // Personal Info
+  fullName      String
+  ci            String
+  ciExpedition  String
+  birthDate     DateTime
+  age           Int
+  gender        String
+  civilStatus   String
+
+  // Contact Info
+  profession    String
+  university    String
+  email         String
+  phone         String
+  whatsapp      String
+  address       String
+  city          String
+  state         String
+  country       String
+
+  // Work Info
+  company         String
+  position        String
+  experienceYears Int
+
+  // Program & Modality
+  modality      Modality           @default(VIRTUAL)
+  channel       String
+  notes         String?
+  termsAccepted Boolean            @default(true)
+
+  // Tracking & Status
+  status        RegistrationStatus @default(NUEVO)
+  ipAddress     String?
+
+  statusHistory StatusHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([advisorId])
+  @@index([programId])
+  @@index([status])
+  @@index([email, programId])
+  @@index([ci])
+}
+
+model StatusHistory {
+  id             String             @id @default(uuid())
+  registrationId String
+  registration   Registration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  previousStatus RegistrationStatus
+  newStatus      RegistrationStatus
+  changedById    String?
+  changedBy      User?              @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  note           String?
+
+  createdAt DateTime @default(now())
+
+  @@index([registrationId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
+
+model FormSetting {
+  id          String   @id @default(uuid())
+  sectionKey  String   @unique
+  isMandatory Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}

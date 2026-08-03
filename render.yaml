@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: posgrado-crm-enterprise
+    env: python
+    buildCommand: pip install openpyxl pillow
+    startCommand: python server.py
+    envVars:
+      - key: PORT
+        value: 10000

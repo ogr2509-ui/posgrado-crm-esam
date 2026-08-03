@@ -1,0 +1,38 @@
+# Node & Dependencies
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Python & Virtual Env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs and Debug outputs
+*.log
+compile_err.txt
+err.log
+log.txt
+out.log
+server_out.txt
+server_stderr.log
+server_stdout.log
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

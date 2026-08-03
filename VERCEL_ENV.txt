@@ -1,0 +1,11 @@
+# ============================================================
+# POSGRADO CRM - VARIABLES DE ENTORNO PARA VERCEL
+# Copia y pega todo el contenido de este archivo en Vercel
+# (Settings > Environment Variables)
+# ============================================================
+
+DATABASE_URL="postgresql://postgres.pjykahdqkmolglethdxs:k!4%25ZmSGiBEQ5%3Fb@aws-0-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true"
+NEXT_PUBLIC_SUPABASE_URL="https://pjykahdqkmolglethdxs.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="sb_publishable_IBzfxSF3S27JBSIfivbfjg_LNvPTRrs"
+JWT_SECRET="super-secret-enterprise-key-change-in-production-posgrado-crm-2026"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
