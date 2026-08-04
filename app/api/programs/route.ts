@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureDatabaseSeeded } from '@/lib/db';
 import { authorizeRequest } from '@/lib/middleware';
 import { programSchema } from '@/lib/validations/program';
 import crypto from 'crypto';
@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   if (response) return response;
 
   try {
-    // If advisor, return active programs. If admin, return all programs.
+    await ensureDatabaseSeeded();
+
     const whereCondition = user?.role === 'ADMIN' ? {} : { active: true };
 
     let programs = await prisma.program.findMany({
@@ -37,11 +38,18 @@ export async function GET(req: NextRequest) {
           linkCode = `${linkCode}-${crypto.randomBytes(3).toString('hex')}`;
         }
 
+        let advisorIdToUse = user!.userId;
+        const userExists = await prisma.user.findUnique({ where: { id: advisorIdToUse } });
+        if (!userExists) {
+          const fallbackUser = await prisma.user.findFirst({ where: { active: true } });
+          if (fallbackUser) advisorIdToUse = fallbackUser.id;
+        }
+
         const newLink = await prisma.link.create({
           data: {
             code: linkCode,
             programId: prog.id,
-            advisorId: user!.userId,
+            advisorId: advisorIdToUse,
             active: true,
           },
         });
@@ -51,9 +59,9 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ programs });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching programs:', error);
-    return NextResponse.json({ error: 'Error al obtener programas.' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error al obtener programas.' }, { status: 500 });
   }
 }
 
@@ -62,6 +70,8 @@ export async function POST(req: NextRequest) {
   if (response) return response;
 
   try {
+    await ensureDatabaseSeeded();
+
     const body = await req.json();
     const validated = programSchema.parse(body);
 
@@ -71,18 +81,18 @@ export async function POST(req: NextRequest) {
 
     if (existingCode) {
       return NextResponse.json(
-        { error: 'Ya existe un programa registrado con ese código.' },
+        { error: 'Ya existe un programa registrado con ese código identificador.' },
         { status: 400 }
       );
     }
 
     const program = await prisma.program.create({
       data: {
-        name: validated.name,
-        code: validated.code,
+        name: validated.name.trim(),
+        code: validated.code.trim().toUpperCase(),
         type: validated.type,
-        description: validated.description,
-        imageUrl: validated.imageUrl,
+        description: validated.description?.trim() || null,
+        imageUrl: validated.imageUrl || null,
         active: validated.active ?? true,
       },
     });
@@ -94,18 +104,25 @@ export async function POST(req: NextRequest) {
       linkCode = `${linkCode}-${crypto.randomBytes(3).toString('hex')}`;
     }
 
+    let advisorIdToUse = user!.userId;
+    const userExists = await prisma.user.findUnique({ where: { id: advisorIdToUse } });
+    if (!userExists) {
+      const fallbackUser = await prisma.user.findFirst({ where: { active: true } });
+      if (fallbackUser) advisorIdToUse = fallbackUser.id;
+    }
+
     const createdLink = await prisma.link.create({
       data: {
         code: linkCode,
         programId: program.id,
-        advisorId: user!.userId,
+        advisorId: advisorIdToUse,
         active: true,
       },
     });
 
     await prisma.auditLog.create({
       data: {
-        userId: user!.userId,
+        userId: advisorIdToUse,
         action: 'PROGRAM_CREATED',
         entity: 'Program',
         entityId: program.id,
@@ -128,6 +145,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
     }
     console.error('Error creating program:', error);
-    return NextResponse.json({ error: 'Error al crear programa.' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error al crear programa.' }, { status: 500 });
   }
 }

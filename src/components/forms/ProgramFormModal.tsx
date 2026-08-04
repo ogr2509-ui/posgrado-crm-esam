@@ -66,16 +66,43 @@ export function ProgramFormModal({
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen supera el tamaño máximo permitido de 5MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      setError('La imagen supera el tamaño máximo permitido de 10MB.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (event) => {
       if (event.target?.result) {
-        setImageUrl(event.target.result as string);
-        setError(null);
+        const rawDataUrl = event.target.result as string;
+        const img = new Image();
+        img.src = rawDataUrl;
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const MAX_WIDTH = 1000;
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+              setImageUrl(compressedDataUrl);
+              setError(null);
+              return;
+            }
+          } catch (err) {
+            console.error('Image compression error:', err);
+          }
+          setImageUrl(rawDataUrl);
+          setError(null);
+        };
       }
     };
     reader.readAsDataURL(file);
