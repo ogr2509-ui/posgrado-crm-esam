@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureDatabaseSeeded } from '@/lib/db';
 import { authorizeRequest } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 import { userSchema } from '@/lib/validations/user';
@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
   if (response) return response;
 
   try {
+    await ensureDatabaseSeeded();
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -37,6 +39,8 @@ export async function POST(req: NextRequest) {
   if (response) return response;
 
   try {
+    await ensureDatabaseSeeded();
+
     const body = await req.json();
     const validated = userSchema.parse(body);
 
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json({ error: 'Ya existe un usuario con ese correo electrónico.' }, { status: 400 });
+      return NextResponse.json({ error: 'Ya existe un usuario registrado con ese correo electrónico.' }, { status: 400 });
     }
 
     let role = await prisma.role.findUnique({
@@ -66,10 +70,10 @@ export async function POST(req: NextRequest) {
 
     const newUser = await prisma.user.create({
       data: {
-        name: validated.name,
+        name: validated.name.trim(),
         email: validated.email.toLowerCase().trim(),
         password: hashedPassword,
-        phone: validated.phone,
+        phone: validated.phone?.trim() || null,
         active: validated.active ?? true,
         roleId: role.id,
       },
@@ -84,15 +88,25 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: user!.userId,
-        action: 'USER_CREATED',
-        entity: 'User',
-        entityId: newUser.id,
-        details: `Usuario asesor "${newUser.name}" (${newUser.email}) creado por Admin`,
-      },
-    });
+    let currentUserId = user!.userId;
+    const currentUserExists = await prisma.user.findUnique({ where: { id: currentUserId } });
+    if (!currentUserExists) {
+      currentUserId = newUser.id;
+    }
+
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          action: 'USER_CREATED',
+          entity: 'User',
+          entityId: newUser.id,
+          details: `Usuario "${newUser.name}" (${newUser.email}) creado por Admin`,
+        },
+      });
+    } catch (e) {
+      console.error('AuditLog error ignored:', e);
+    }
 
     return NextResponse.json({ message: 'Usuario creado exitosamente.', user: newUser }, { status: 201 });
   } catch (error: any) {
@@ -100,6 +114,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
     }
     console.error('Error creating user:', error);
-    return NextResponse.json({ error: 'Error al crear usuario.' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error al crear usuario.' }, { status: 500 });
   }
 }

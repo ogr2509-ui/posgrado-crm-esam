@@ -1,10 +1,13 @@
 import React from 'react';
-import { prisma } from '@/lib/db';
+import { prisma, ensureDatabaseSeeded } from '@/lib/db';
 import { PublicRegistrationForm } from '@/components/forms/PublicRegistrationForm';
 import { AlertTriangle } from 'lucide-react';
 
 export default async function PublicFormPage({ params }: { params: { code: string } }) {
   const { code } = params;
+
+  // Ensure DB and SQLite tables are initialized on Vercel serverless cold starts
+  await ensureDatabaseSeeded();
 
   // Resolve link data server-side for initial render
   let link = await prisma.link.findUnique({
