@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SlidersHorizontal, CheckCircle2, ShieldCheck, Save, Loader2 } from 'lucide-react';
-import { Toast } from '@/components/ui/Toast';
+import { useToast } from '@/components/ui/Toast';
 
 interface FormSettings {
   datos_personales: boolean;
@@ -43,6 +43,7 @@ const SECTIONS = [
 ];
 
 export default function FormSettingsPage() {
+  const toast = useToast();
   const [settings, setSettings] = useState<FormSettings>({
     datos_personales: true,
     documentos_ci: true,
@@ -51,7 +52,6 @@ export default function FormSettingsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -91,9 +91,9 @@ export default function FormSettingsPage() {
 
       if (!res.ok) throw new Error('Error al guardar la configuración');
 
-      setToastMessage('Configuración del formulario guardada exitosamente.');
+      toast.success('Configuración Guardada', 'La configuración del formulario público ha sido actualizada.');
     } catch (error: any) {
-      setToastMessage(error.message || 'Error de conexión');
+      toast.error('Error de Guardado', error.message || 'No se pudo conectar con el servidor.');
     } finally {
       setIsSaving(false);
     }
@@ -109,13 +109,6 @@ export default function FormSettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
-      {toastMessage && (
-        <Toast
-          message={toastMessage}
-          type="success"
-          onClose={() => setToastMessage(null)}
-        />
-      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">

@@ -222,16 +222,12 @@ export default function ProgramsPage() {
                 </div>
 
                 {prog.imageUrl && (
-                  <div className="mt-3 w-full h-32 rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-                    <img
-                      src={prog.imageUrl}
-                      alt={prog.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                  <div className="w-full h-32 rounded-xl overflow-hidden mt-3 mb-1 border border-slate-800 bg-slate-950 shadow-inner">
+                    <img src={prog.imageUrl} alt={prog.name} className="w-full h-full object-cover object-center" />
                   </div>
                 )}
 
-                <h3 className="text-sm font-bold text-white mt-3 leading-tight group-hover:text-blue-400 transition-colors">
+                <h3 className="text-sm font-bold text-white mt-2 leading-tight group-hover:text-blue-400 transition-colors">
                   {prog.name}
                 </h3>
                 <p className="text-[11px] font-mono text-blue-400 font-bold mt-1">Código: {prog.code}</p>

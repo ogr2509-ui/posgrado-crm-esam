@@ -1,0 +1,27 @@
+export enum RoleName {
+  ADMIN = 'ADMIN',
+  ASESOR = 'ASESOR',
+}
+
+export enum ProgramType {
+  CURSO = 'CURSO',
+  DIPLOMADO = 'DIPLOMADO',
+  MAESTRIA = 'MAESTRIA',
+  ESPECIALIDAD = 'ESPECIALIDAD',
+  DOCTORADO = 'DOCTORADO',
+}
+
+export enum Modality {
+  PRESENCIAL = 'PRESENCIAL',
+  VIRTUAL = 'VIRTUAL',
+  SEMIPRESENCIAL = 'SEMIPRESENCIAL',
+}
+
+export enum RegistrationStatus {
+  NUEVO = 'NUEVO',
+  CONTACTADO = 'CONTACTADO',
+  DOC_PENDIENTE = 'DOC_PENDIENTE',
+  COMPLETO = 'COMPLETO',
+  MATRICULADO = 'MATRICULADO',
+  DESCARTADO = 'DESCARTADO',
+}

@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
     const programId = searchParams.get('programId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const monthParam = searchParams.get('month');
+    const yearParam = searchParams.get('year');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const skip = parseInt(searchParams.get('skip') || '0', 10);
@@ -41,7 +43,18 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (startDate || endDate) {
+    if (monthParam || yearParam) {
+      if (monthParam !== 'ALL' && yearParam !== 'ALL') {
+        const now = new Date();
+        const m = monthParam ? parseInt(monthParam, 10) : (now.getMonth() + 1);
+        const y = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
+        if (!isNaN(m) && !isNaN(y)) {
+          const startOfM = new Date(y, m - 1, 1, 0, 0, 0, 0);
+          const endOfM = new Date(y, m, 0, 23, 59, 59, 999);
+          where.createdAt = { gte: startOfM, lte: endOfM };
+        }
+      }
+    } else if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) where.createdAt.gte = new Date(startDate);
       if (endDate) {

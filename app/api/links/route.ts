@@ -8,17 +8,56 @@ export async function GET(req: NextRequest) {
   if (response) return response;
 
   try {
-    const whereCondition = { advisorId: user!.userId };
+    // Both advisors and admins view all active program links (admin sees inactive ones too)
+    const programWhere = user?.role === 'ADMIN' ? {} : { active: true };
 
-    const links = await prisma.link.findMany({
-      where: whereCondition,
-      include: {
-        program: { select: { id: true, name: true, code: true, type: true } },
-        advisor: { select: { id: true, name: true, email: true, phone: true } },
-        _count: { select: { registrations: true } },
-      },
+    // Get all programs with their links
+    const programs = await prisma.program.findMany({
+      where: programWhere,
       orderBy: { createdAt: 'desc' },
+      include: {
+        links: {
+          take: 1,
+          orderBy: { createdAt: 'asc' },
+          include: {
+            advisor: { select: { id: true, name: true, email: true, phone: true } },
+            _count: { select: { registrations: true } },
+          },
+        },
+      },
     });
+
+    // Ensure all programs have a Link
+    const links: any[] = [];
+    for (const prog of programs) {
+      let programLink = prog.links[0];
+
+      if (!programLink) {
+        let linkCode = prog.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const existingCode = await prisma.link.findUnique({ where: { code: linkCode } });
+        if (existingCode) {
+          linkCode = `${linkCode}-${crypto.randomBytes(3).toString('hex')}`;
+        }
+
+        programLink = await prisma.link.create({
+          data: {
+            code: linkCode,
+            programId: prog.id,
+            advisorId: user!.userId,
+            active: true,
+          },
+          include: {
+            advisor: { select: { id: true, name: true, email: true, phone: true } },
+            _count: { select: { registrations: true } },
+          },
+        }) as any;
+      }
+
+      links.push({
+        ...programLink,
+        program: { id: prog.id, name: prog.name, code: prog.code, type: prog.type, active: prog.active },
+      });
+    }
 
     return NextResponse.json({ links });
   } catch (error) {
@@ -33,7 +72,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { programId, advisorId } = body;
+    const { programId } = body;
 
     if (!programId) {
       return NextResponse.json({ error: 'Debes seleccionar un programa académico.' }, { status: 400 });
@@ -47,25 +86,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'El programa no existe o está inactivo.' }, { status: 404 });
     }
 
-    // Target advisor: If admin provides advisorId, use it; otherwise use current user
-    let targetAdvisorId = user!.userId;
-    if (user?.role === 'ADMIN' && advisorId) {
-      targetAdvisorId = advisorId;
+    // Check if link for this program already exists
+    let existingLink = await prisma.link.findFirst({
+      where: { programId: program.id },
+      include: {
+        program: { select: { id: true, name: true, code: true, type: true } },
+        advisor: { select: { id: true, name: true, email: true, phone: true } },
+        _count: { select: { registrations: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (existingLink) {
+      return NextResponse.json({ message: 'Enlace del programa obtenido.', link: existingLink });
     }
 
-    const advisor = await prisma.user.findUnique({ where: { id: targetAdvisorId } });
-    if (!advisor || !advisor.active) {
-      return NextResponse.json({ error: 'El asesor de ventas no existe o está inactivo.' }, { status: 404 });
+    // Generate link if none exists
+    let code = program.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const existingCode = await prisma.link.findUnique({ where: { code } });
+    if (existingCode) {
+      code = `${code}-${crypto.randomBytes(3).toString('hex')}`;
     }
-
-    // Generate unique 10-character code (e.g., 4fd89af8b2)
-    const code = crypto.randomBytes(5).toString('hex');
 
     const link = await prisma.link.create({
       data: {
         code,
         programId: program.id,
-        advisorId: targetAdvisorId,
+        advisorId: user!.userId,
         active: true,
       },
       include: {
@@ -81,7 +128,7 @@ export async function POST(req: NextRequest) {
         action: 'LINK_CREATED',
         entity: 'Link',
         entityId: link.id,
-        details: `Enlace único (${link.code}) generado para el programa ${program.name} asignado a ${advisor.name}`,
+        details: `Enlace único (${link.code}) generado para el programa ${program.name}`,
       },
     });
 

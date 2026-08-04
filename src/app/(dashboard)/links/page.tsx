@@ -87,9 +87,9 @@ export default function LinksPage() {
               Tracking Comercial
             </span>
           </div>
-          <h1 className="text-xl font-black text-white tracking-tight">Enlaces Promocionales por Asesor</h1>
+          <h1 className="text-xl font-black text-white tracking-tight">Enlaces Oficiales por Programa Académico</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Generación de enlaces de captación únicos asignados a cada asesor de ventas para rastreo de postulantes y conversiones.
+            Enlaces de captación unificados por programa para compartir con postulantes. Son idénticos tanto para asesores de ventas como para el administrador.
           </p>
         </div>
 

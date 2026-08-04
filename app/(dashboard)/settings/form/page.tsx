@@ -43,7 +43,7 @@ const SECTIONS = [
 ];
 
 export default function FormSettingsPage() {
-  const { success, error: toastError } = useToast();
+  const toast = useToast();
   const [settings, setSettings] = useState<FormSettings>({
     datos_personales: true,
     documentos_ci: true,
@@ -91,9 +91,9 @@ export default function FormSettingsPage() {
 
       if (!res.ok) throw new Error('Error al guardar la configuración');
 
-      success('Configuración Guardada', 'La configuración del formulario se actualizó exitosamente.');
+      toast.success('Configuración Guardada', 'La configuración del formulario público ha sido actualizada.');
     } catch (error: any) {
-      toastError('Error al guardar', error.message || 'Error de conexión');
+      toast.error('Error de Guardado', error.message || 'No se pudo conectar con el servidor.');
     } finally {
       setIsSaving(false);
     }
@@ -109,13 +109,6 @@ export default function FormSettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
-      {toastMessage && (
-        <Toast
-          message={toastMessage}
-          type="success"
-          onClose={() => setToastMessage(null)}
-        />
-      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">

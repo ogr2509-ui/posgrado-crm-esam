@@ -5,21 +5,16 @@ out/
 build/
 dist/
 
-# Python & Virtual Env
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.venv/
-env/
-venv/
-
 # Environment files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Database
+*.db
+*.db-journal
 
 # Logs and Debug outputs
 *.log
@@ -30,6 +25,36 @@ out.log
 server_out.txt
 server_stderr.log
 server_stdout.log
+compile_result.txt
+err_import.txt
+syntax_out.txt
+utf8_ok.txt
+tsconfig.tsbuildinfo
+
+# Python & Temporary Scratch Scripts
+*.py
+catch_err.py
+check_compile.py
+check_http.py
+check_syntax.py
+check_utf8.py
+debug_run.py
+dev-preview.js
+dev-preview.py
+find_syntax_error.py
+fix_refs.py
+gen.py
+run_and_capture.py
+run_server_debug.py
+temp_test.py
+test.py
+test_*.py
+test_*.js
+
+# Uploaded Files
+uploads/
+posgrado-crm-prod/
+posgrado-crm-prod-121/
 
 # IDE & OS files
 .DS_Store

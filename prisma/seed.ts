@@ -1,5 +1,33 @@
-import { PrismaClient, RoleName, ProgramType, Modality, RegistrationStatus } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const RoleName = {
+  ADMIN: 'ADMIN',
+  ASESOR: 'ASESOR',
+};
+
+const ProgramType = {
+  CURSO: 'CURSO',
+  DIPLOMADO: 'DIPLOMADO',
+  MAESTRIA: 'MAESTRIA',
+  ESPECIALIDAD: 'ESPECIALIDAD',
+  DOCTORADO: 'DOCTORADO',
+};
+
+const Modality = {
+  PRESENCIAL: 'PRESENCIAL',
+  VIRTUAL: 'VIRTUAL',
+  SEMIPRESENCIAL: 'SEMIPRESENCIAL',
+};
+
+const RegistrationStatus = {
+  NUEVO: 'NUEVO',
+  CONTACTADO: 'CONTACTADO',
+  DOC_PENDIENTE: 'DOC_PENDIENTE',
+  COMPLETO: 'COMPLETO',
+  MATRICULADO: 'MATRICULADO',
+  DESCARTADO: 'DESCARTADO',
+};
 
 const prisma = new PrismaClient();
 

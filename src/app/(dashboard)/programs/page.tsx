@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ProgramFormModal } from '@/components/forms/ProgramFormModal';
-import { GraduationCap, Plus, Edit, Trash2, Power, BookOpen, Search, CheckCircle2, XCircle, Filter, BookCheck } from 'lucide-react';
+import { GraduationCap, Plus, Edit, Trash2, Power, BookOpen, Search, CheckCircle2, XCircle, Filter, BookCheck, Copy, Check, ExternalLink, MessageCircle, Link as LinkIcon } from 'lucide-react';
 
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<any[]>([]);
@@ -11,6 +11,7 @@ export default function ProgramsPage() {
   const [programToEdit, setProgramToEdit] = useState<any | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPrograms();
@@ -27,6 +28,30 @@ export default function ProgramsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getProgramLinkCode = (prog: any) => {
+    if (prog.links && prog.links.length > 0) {
+      return prog.links[0].code;
+    }
+    return prog.code.toLowerCase();
+  };
+
+  const copyLinkUrl = (prog: any) => {
+    const linkCode = getProgramLinkCode(prog);
+    const fullUrl = `${window.location.origin}/f/${linkCode}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedId(prog.id);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const shareWhatsApp = (prog: any) => {
+    const linkCode = getProgramLinkCode(prog);
+    const fullUrl = `${window.location.origin}/f/${linkCode}`;
+    const text = encodeURIComponent(
+      `¡Hola! 👋 Te comparto el enlace de postulación oficial para el programa ${prog.name}. Registra tus datos aquí: ${fullUrl}`
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
   const toggleProgramActive = async (program: any) => {
@@ -222,16 +247,12 @@ export default function ProgramsPage() {
                 </div>
 
                 {prog.imageUrl && (
-                  <div className="mt-3 w-full h-32 rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-                    <img
-                      src={prog.imageUrl}
-                      alt={prog.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                  <div className="w-full h-32 rounded-xl overflow-hidden mt-3 mb-1 border border-slate-800 bg-slate-950 shadow-inner">
+                    <img src={prog.imageUrl} alt={prog.name} className="w-full h-full object-cover object-center" />
                   </div>
                 )}
 
-                <h3 className="text-sm font-bold text-white mt-3 leading-tight group-hover:text-blue-400 transition-colors">
+                <h3 className="text-sm font-bold text-white mt-2 leading-tight group-hover:text-blue-400 transition-colors">
                   {prog.name}
                 </h3>
                 <p className="text-[11px] font-mono text-blue-400 font-bold mt-1">Código: {prog.code}</p>
@@ -241,6 +262,59 @@ export default function ProgramsPage() {
                 ) : (
                   <p className="text-xs text-slate-600 italic mt-2">Sin descripción agregada</p>
                 )}
+
+                {/* Instant Program Share Link Section */}
+                <div className="mt-4 p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                    <span className="flex items-center gap-1 text-blue-400 font-bold">
+                      <LinkIcon className="w-3 h-3" /> Enlace de Compartir
+                    </span>
+                    <a
+                      href={`/f/${getProgramLinkCode(prog)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-slate-500 hover:text-blue-400 flex items-center gap-0.5 transition-colors"
+                      title="Probar enlace de postulación"
+                    >
+                      <span>Vista previa</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 truncate">
+                      /f/{getProgramLinkCode(prog)}
+                    </div>
+                    <button
+                      onClick={() => copyLinkUrl(prog)}
+                      className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all shrink-0 ${
+                        copiedId === prog.id
+                          ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                          : 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-500/30'
+                      }`}
+                      title="Copiar enlace"
+                    >
+                      {copiedId === prog.id ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span className="text-[10px]">Copiado</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span className="text-[10px]">Copiar</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => shareWhatsApp(prog)}
+                      className="p-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 transition-all shrink-0"
+                      title="Compartir por WhatsApp"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs">

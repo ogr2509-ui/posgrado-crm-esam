@@ -6,10 +6,9 @@ export const programSchema = z.object({
   type: z.enum(['CURSO', 'DIPLOMADO', 'MAESTRIA', 'ESPECIALIDAD', 'DOCTORADO'], {
     required_error: 'Selecciona el tipo de programa.',
   }),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),
   active: z.boolean().default(true),
 });
 
 export type ProgramFormData = z.infer<typeof programSchema>;
-

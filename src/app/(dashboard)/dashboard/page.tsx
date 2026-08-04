@@ -6,10 +6,31 @@ import { AnalyticsCharts } from '@/components/dashboard/Charts';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { LinkGeneratorModal } from '@/components/forms/LinkGeneratorModal';
 import { StatusTimelineModal } from '@/components/dashboard/StatusTimelineModal';
-import { Plus, Award, ArrowUpRight, FileSpreadsheet, FileText, Sparkles, RefreshCw } from 'lucide-react';
+import { Plus, Award, ArrowUpRight, Calendar, RefreshCw, Filter } from 'lucide-react';
 import Link from 'next/link';
 
+const MONTHS = [
+  { value: 'ALL', label: '🗓️ Todos los meses' },
+  { value: '1', label: 'Enero' },
+  { value: '2', label: 'Febrero' },
+  { value: '3', label: 'Marzo' },
+  { value: '4', label: 'Abril' },
+  { value: '5', label: 'Mayo' },
+  { value: '6', label: 'Junio' },
+  { value: '7', label: 'Julio' },
+  { value: '8', label: 'Agosto' },
+  { value: '9', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+];
+
+const YEARS = ['ALL', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
+
 export default function DashboardPage() {
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<string>(String(now.getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState<string>(String(now.getFullYear()));
   const [stats, setStats] = useState<any>(null);
   const [recentRegistrations, setRecentRegistrations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,15 +38,15 @@ export default function DashboardPage() {
   const [selectedRegistration, setSelectedRegistration] = useState<any | null>(null);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    fetchDashboardData(selectedMonth, selectedYear);
+  }, [selectedMonth, selectedYear]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (m = selectedMonth, y = selectedYear) => {
     setIsLoading(true);
     try {
       const [statsRes, regRes] = await Promise.all([
-        fetch('/api/stats'),
-        fetch('/api/registrations'),
+        fetch(`/api/stats?month=${m}&year=${y}`),
+        fetch(`/api/registrations?month=${m}&year=${y}`),
       ]);
 
       const statsData = await statsRes.json();
@@ -43,7 +64,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header Banner & Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border border-slate-800 shadow-xl">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border border-slate-800 shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="p-1 rounded-md bg-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-wider">
@@ -52,13 +73,43 @@ export default function DashboardPage() {
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">Panel de Control General</h1>
           <p className="text-xs text-slate-400">
-            Métricas de captación, desempeño comercial y conversiones en tiempo real.
+            Métricas de captación, desempeño comercial y conversiones por mes y año.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Date Filter Controls (Month & Year Selectors) */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-950 border border-slate-800 shadow-inner">
+            <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer"
+            >
+              {MONTHS.map((m) => (
+                <option key={m.value} value={m.value} className="bg-slate-900 text-white">
+                  {m.label}
+                </option>
+              ))}
+            </select>
+
+            <span className="text-slate-600">/</span>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-transparent text-xs font-bold text-blue-400 outline-none cursor-pointer"
+            >
+              {YEARS.map((y) => (
+                <option key={y} value={y} className="bg-slate-900 text-white">
+                  {y === 'ALL' ? 'Todos los años' : y}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
-            onClick={fetchDashboardData}
+            onClick={() => fetchDashboardData(selectedMonth, selectedYear)}
             className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
             title="Actualizar datos"
           >
@@ -70,7 +121,7 @@ export default function DashboardPage() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-500/20 transition-all"
           >
             <Plus className="w-4 h-4" />
-            Generar Nuevo Enlace
+            Generar Enlace
           </button>
         </div>
       </div>
@@ -98,9 +149,9 @@ export default function DashboardPage() {
           <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Award className="w-4 h-4 text-amber-400" /> Top Asesores de Ventas
+                <Award className="w-4 h-4 text-amber-400" /> Top Asesores del Período
               </h3>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Captación</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Ranking</span>
             </div>
 
             <div className="space-y-3">
@@ -145,7 +196,7 @@ export default function DashboardPage() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-white">Últimas Inscripciones Recibidas</h3>
+              <h3 className="text-sm font-bold text-white">Inscripciones del Período</h3>
               <p className="text-xs text-slate-400">Leads captados recientemente a través de los enlaces</p>
             </div>
             <Link
@@ -197,7 +248,7 @@ export default function DashboardPage() {
                 ) : (
                   <tr>
                     <td colSpan={6} className="p-4 text-center text-slate-500 italic">
-                      No hay registros recientes.
+                      No hay registros en el período seleccionado.
                     </td>
                   </tr>
                 )}
@@ -211,7 +262,7 @@ export default function DashboardPage() {
       <LinkGeneratorModal
         isOpen={isLinkModalOpen}
         onClose={() => setIsLinkModalOpen(false)}
-        onLinkCreated={fetchDashboardData}
+        onLinkCreated={() => fetchDashboardData(selectedMonth, selectedYear)}
       />
 
       <StatusTimelineModal
@@ -220,7 +271,7 @@ export default function DashboardPage() {
         registration={selectedRegistration}
         onStatusUpdated={() => {
           setSelectedRegistration(null);
-          fetchDashboardData();
+          fetchDashboardData(selectedMonth, selectedYear);
         }}
       />
     </div>

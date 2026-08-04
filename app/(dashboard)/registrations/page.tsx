@@ -7,7 +7,26 @@ import { Search, Filter, FileSpreadsheet, FileText, RefreshCw, Eye, MessageCircl
 
 const PAGE_SIZE = 20;
 
+const MONTHS = [
+  { value: 'ALL', label: '🗓️ Todos los meses' },
+  { value: '1', label: 'Enero' },
+  { value: '2', label: 'Febrero' },
+  { value: '3', label: 'Marzo' },
+  { value: '4', label: 'Abril' },
+  { value: '5', label: 'Mayo' },
+  { value: '6', label: 'Junio' },
+  { value: '7', label: 'Julio' },
+  { value: '8', label: 'Agosto' },
+  { value: '9', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+];
+
+const YEARS = ['ALL', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
+
 export default function RegistrationsPage() {
+  const now = new Date();
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +39,8 @@ export default function RegistrationsPage() {
   const [search, setSearch] = useState('');
   const [selectedProgram, setSelectedProgram] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [selectedMonth, setSelectedMonth] = useState<string>(String(now.getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState<string>(String(now.getFullYear()));
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -27,6 +48,8 @@ export default function RegistrationsPage() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [appliedProgram, setAppliedProgram] = useState('ALL');
   const [appliedStatus, setAppliedStatus] = useState('ALL');
+  const [appliedMonth, setAppliedMonth] = useState<string>(String(now.getMonth() + 1));
+  const [appliedYear, setAppliedYear] = useState<string>(String(now.getFullYear()));
   const [appliedStartDate, setAppliedStartDate] = useState('');
   const [appliedEndDate, setAppliedEndDate] = useState('');
 
@@ -58,6 +81,8 @@ export default function RegistrationsPage() {
     search?: string;
     programId?: string;
     status?: string;
+    month?: string;
+    year?: string;
     startDate?: string;
     endDate?: string;
     page?: number;
@@ -68,6 +93,8 @@ export default function RegistrationsPage() {
       const s = filters?.search ?? appliedSearch;
       const prog = filters?.programId ?? appliedProgram;
       const stat = filters?.status ?? appliedStatus;
+      const m = filters?.month ?? appliedMonth;
+      const y = filters?.year ?? appliedYear;
       const sd = filters?.startDate ?? appliedStartDate;
       const ed = filters?.endDate ?? appliedEndDate;
       const p = filters?.page ?? page;
@@ -75,6 +102,8 @@ export default function RegistrationsPage() {
       if (s) queryParams.set('search', s);
       if (prog !== 'ALL') queryParams.set('programId', prog);
       if (stat !== 'ALL') queryParams.set('status', stat);
+      if (m !== 'ALL') queryParams.set('month', m);
+      if (y !== 'ALL') queryParams.set('year', y);
       if (sd) queryParams.set('startDate', sd);
       if (ed) queryParams.set('endDate', ed);
       queryParams.set('skip', String((p - 1) * PAGE_SIZE));
@@ -91,12 +120,14 @@ export default function RegistrationsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [appliedSearch, appliedProgram, appliedStatus, appliedStartDate, appliedEndDate, page]);
+  }, [appliedSearch, appliedProgram, appliedStatus, appliedMonth, appliedYear, appliedStartDate, appliedEndDate, page]);
 
   const handleApplyFilters = () => {
     setAppliedSearch(search);
     setAppliedProgram(selectedProgram);
     setAppliedStatus(selectedStatus);
+    setAppliedMonth(selectedMonth);
+    setAppliedYear(selectedYear);
     setAppliedStartDate(startDate);
     setAppliedEndDate(endDate);
     setPage(1);
@@ -104,6 +135,8 @@ export default function RegistrationsPage() {
       search,
       programId: selectedProgram,
       status: selectedStatus,
+      month: selectedMonth,
+      year: selectedYear,
       startDate,
       endDate,
       page: 1,
@@ -111,20 +144,23 @@ export default function RegistrationsPage() {
   };
 
   const handleClearFilters = () => {
-    // Reset all UI state
     setSearch('');
     setSelectedProgram('ALL');
     setSelectedStatus('ALL');
+    setSelectedMonth('ALL');
+    setSelectedYear('ALL');
     setStartDate('');
     setEndDate('');
-    // Reset applied state and fetch with clean state
+
     setAppliedSearch('');
     setAppliedProgram('ALL');
     setAppliedStatus('ALL');
+    setAppliedMonth('ALL');
+    setAppliedYear('ALL');
     setAppliedStartDate('');
     setAppliedEndDate('');
     setPage(1);
-    fetchRegistrations({ search: '', programId: 'ALL', status: 'ALL', startDate: '', endDate: '', page: 1 });
+    fetchRegistrations({ search: '', programId: 'ALL', status: 'ALL', month: 'ALL', year: 'ALL', startDate: '', endDate: '', page: 1 });
   };
 
   const handlePageChange = (newPage: number) => {
@@ -155,27 +191,21 @@ export default function RegistrationsPage() {
     }
   };
 
-  const openWhatsApp = (reg: any) => {
-    const rawPhone = (reg.whatsapp || reg.phone || '').replace(/\D/g, '');
-    const phone = rawPhone.length === 8 ? `591${rawPhone}` : rawPhone;
-    const msg = encodeURIComponent(
-      `Hola ${reg.fullName}, te escribo de Posgrado CRM respecto a tu postulación para ${reg.program?.name}. ¿Cómo estás?`
-    );
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
-  };
-
   const handleExport = (format: 'excel' | 'pdf') => {
     const queryParams = new URLSearchParams();
-    queryParams.set('format', format);
     if (appliedSearch) queryParams.set('search', appliedSearch);
     if (appliedProgram !== 'ALL') queryParams.set('programId', appliedProgram);
     if (appliedStatus !== 'ALL') queryParams.set('status', appliedStatus);
+    if (appliedMonth !== 'ALL') queryParams.set('month', appliedMonth);
+    if (appliedYear !== 'ALL') queryParams.set('year', appliedYear);
     if (appliedStartDate) queryParams.set('startDate', appliedStartDate);
     if (appliedEndDate) queryParams.set('endDate', appliedEndDate);
+    queryParams.set('format', format);
+
     window.open(`/api/registrations/export?${queryParams.toString()}`, '_blank');
   };
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
 
   return (
     <div className="space-y-6">
@@ -187,7 +217,9 @@ export default function RegistrationsPage() {
           </span>
           <h1 className="text-xl font-black text-white tracking-tight mt-1">Gestión de Postulantes e Inscritos</h1>
           <p className="text-xs text-slate-400">
-            Administración de prospectos captados, actualización de estados de matrícula y contacto directo por WhatsApp.
+            {userRole === 'ADMIN'
+              ? 'Panel global de postulantes registrados en todos los programas y enlaces.'
+              : 'Gestión de prospectos inscritos a través de tus enlaces personales.'}
           </p>
         </div>
 
@@ -220,7 +252,7 @@ export default function RegistrationsPage() {
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
               placeholder="Nombre, CI, Correo o Celular..."
-              className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 outline-none focus:border-blue-500"
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 outline-none focus:border-blue-500 font-medium"
             />
           </div>
 
@@ -229,7 +261,7 @@ export default function RegistrationsPage() {
             <select
               value={selectedProgram}
               onChange={(e) => setSelectedProgram(e.target.value)}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-medium"
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-medium cursor-pointer"
             >
               <option value="ALL">Todos los Programas</option>
               {programs.map((p) => (
@@ -245,7 +277,7 @@ export default function RegistrationsPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-medium"
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-medium cursor-pointer"
             >
               <option value="ALL">Todos los Estados</option>
               <option value="NUEVO">Nuevo Lead</option>
@@ -257,33 +289,41 @@ export default function RegistrationsPage() {
             </select>
           </div>
 
-          {/* Date Range */}
-          <div className="flex items-center gap-1 lg:col-span-2">
-            <div className="relative flex-1">
-              <Calendar className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-3" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full pl-8 pr-2 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-xs outline-none focus:border-blue-500"
-                title="Fecha inicio"
-              />
+          {/* Month & Year Filter Dropdowns */}
+          <div className="flex items-center gap-1.5 lg:col-span-2">
+            <div className="flex-1 flex items-center gap-1 px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-800">
+              <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer w-full"
+              >
+                {MONTHS.map((m) => (
+                  <option key={m.value} value={m.value} className="bg-slate-900 text-white">
+                    {m.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <span className="text-slate-500 text-xs shrink-0">—</span>
-            <div className="relative flex-1">
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-2 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-xs outline-none focus:border-blue-500"
-                title="Fecha fin"
-              />
+
+            <div className="w-28 px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-800">
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="bg-transparent text-xs font-bold text-blue-400 outline-none cursor-pointer w-full"
+              >
+                {YEARS.map((y) => (
+                  <option key={y} value={y} className="bg-slate-900 text-white">
+                    {y === 'ALL' ? 'Todos los años' : y}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
 
         {/* Filter Actions */}
-        <div className="flex items-center gap-2 justify-end">
+        <div className="flex items-center gap-2 justify-end pt-1">
           <button
             onClick={handleClearFilters}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold transition-colors"
@@ -300,119 +340,142 @@ export default function RegistrationsPage() {
         </div>
       </div>
 
-      {/* Registrations Table */}
-      <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
+      {/* Main Table */}
+      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-400 font-medium">
+            Mostrando <strong className="text-white">{registrations.length}</strong> de{' '}
+            <strong className="text-white">{totalCount}</strong> postulaciones en este período
+          </p>
+
+          {/* Pagination Controls Top */}
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page === 1 || isLoading}
+              onClick={() => handlePageChange(page - 1)}
+              className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 hover:text-white disabled:opacity-40 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-mono text-slate-300 font-bold">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              disabled={page >= totalPages || isLoading}
+              onClick={() => handlePageChange(page + 1)}
+              className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 hover:text-white disabled:opacity-40 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="text-[11px] uppercase tracking-wider text-slate-400 bg-slate-800/80 border-b border-slate-800">
+            <thead className="text-[11px] uppercase tracking-wider text-slate-400 bg-slate-950 border-b border-slate-800">
               <tr>
-                <th className="p-3.5 font-semibold">Fecha</th>
-                <th className="p-3.5 font-semibold">Postulante / CI</th>
-                <th className="p-3.5 font-semibold">Contacto & Ciudad</th>
-                <th className="p-3.5 font-semibold">Programa Académico</th>
-                <th className="p-3.5 font-semibold">Asesor Asignado</th>
-                <th className="p-3.5 font-semibold">Estado de Matrícula</th>
-                <th className="p-3.5 font-semibold text-right">Acciones Comerciales</th>
+                <th className="p-3.5 font-bold">Fecha / ID</th>
+                <th className="p-3.5 font-bold">Postulante</th>
+                <th className="p-3.5 font-bold">Programa Académico</th>
+                <th className="p-3.5 font-bold">Asesor Responsable</th>
+                <th className="p-3.5 font-bold">Modalidad / Canal</th>
+                <th className="p-3.5 font-bold">Estado Actual</th>
+                <th className="p-3.5 font-bold text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-medium">
               {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-500">
-                    <div className="flex items-center justify-center gap-3">
-                      <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
-                      Cargando postulaciones...
-                    </div>
-                  </td>
-                </tr>
+                [1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td colSpan={7} className="p-4 bg-slate-900/50" />
+                  </tr>
+                ))
               ) : registrations.length > 0 ? (
                 registrations.map((reg) => (
-                  <tr key={reg.id} className="hover:bg-slate-800/30 transition-colors group">
+                  <tr key={reg.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="p-3.5 text-slate-400 whitespace-nowrap">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-slate-500" />
-                        {new Date(reg.createdAt).toLocaleDateString('es-ES')}
+                      <p className="font-bold text-slate-300">{new Date(reg.createdAt).toLocaleDateString()}</p>
+                      <p className="text-[10px] font-mono text-slate-500">{new Date(reg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </td>
+
+                    <td className="p-3.5">
+                      <p className="font-bold text-white text-xs">{reg.fullName}</p>
+                      <p className="text-[11px] text-slate-400">CI: {reg.ci} {reg.ciExpedition}</p>
+                      <p className="text-[10px] text-blue-400">{reg.email}</p>
+                    </td>
+
+                    <td className="p-3.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950/80 text-blue-300 border border-blue-800/80 uppercase">
+                        {reg.program?.type}
                       </span>
+                      <p className="font-bold text-slate-200 text-xs mt-1 line-clamp-1">{reg.program?.name}</p>
+                    </td>
+
+                    <td className="p-3.5 text-slate-300 font-semibold">
+                      {reg.advisor?.name || 'Sistema'}
+                    </td>
+
+                    <td className="p-3.5 text-slate-400 text-[11px]">
+                      <p className="font-bold text-slate-300">{reg.modality}</p>
+                      <p className="text-[10px] text-slate-500">{reg.channel}</p>
                     </td>
 
                     <td className="p-3.5">
-                      <p className="font-bold text-white text-xs group-hover:text-blue-400 transition-colors">
-                        {reg.fullName}
-                      </p>
-                      <p className="text-[11px] text-slate-400 font-mono">CI: {reg.ci} ({reg.ciExpedition})</p>
-                      <p className="text-[10px] text-slate-500">{reg.profession}</p>
-                    </td>
-
-                    <td className="p-3.5">
-                      <p className="text-slate-300">{reg.email}</p>
-                      <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono mt-0.5">
-                        <Phone className="w-3 h-3 text-slate-500" /> {reg.phone}
-                      </p>
-                      <p className="text-[10px] text-slate-500">{reg.city}, {reg.state}</p>
-                    </td>
-
-                    <td className="p-3.5">
-                      <p className="font-semibold text-slate-200">{reg.program?.name}</p>
-                      <span className="text-[10px] font-mono text-blue-400 font-bold">
-                        [{reg.program?.type}] {reg.program?.code}
-                      </span>
-                    </td>
-
-                    <td className="p-3.5 text-slate-300">
-                      <span className="font-bold text-white">{reg.advisor?.name}</span>
-                    </td>
-
-                    <td className="p-3.5">
-                      <select
-                        value={reg.status}
-                        onChange={(e) => updateLeadStatus(reg.id, e.target.value)}
-                        className="p-1.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-bold text-white outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="NUEVO">🔹 Nuevo</option>
-                        <option value="CONTACTADO">📞 Contactado</option>
-                        <option value="DOC_PENDIENTE">📄 Doc. Pendiente</option>
-                        <option value="COMPLETO">✅ Completo</option>
-                        <option value="MATRICULADO">🎓 Matriculado</option>
-                        <option value="DESCARTADO">❌ Descartado</option>
-                      </select>
-                    </td>
-
-                    <td className="p-3.5 text-right space-x-1.5">
-                      {/* Direct WhatsApp Contact Button */}
-                      <button
-                        onClick={() => openWhatsApp(reg)}
-                        className="px-2.5 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold text-xs inline-flex items-center gap-1 transition-colors"
-                        title="Contactar vía WhatsApp"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> WA
-                      </button>
-
-                      {/* Detail Record Modal Button */}
-                      <button
-                        onClick={() => setSelectedRegistration(reg)}
-                        className="px-2.5 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-bold text-xs border border-blue-500/30 transition-colors inline-flex items-center gap-1"
-                        title="Ver historial y expediente"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Expediente
-                      </button>
-
-                      {/* Delete Button (admin only) */}
-                      {userRole === 'ADMIN' && (
-                        <button
-                          onClick={() => deleteRegistration(reg.id)}
-                          className="px-2 py-1.5 rounded-xl bg-rose-600/10 hover:bg-rose-600/30 text-rose-400 border border-rose-500/20 font-bold text-xs inline-flex items-center transition-colors"
-                          title="Eliminar registro"
+                      <div className="space-y-1">
+                        <StatusBadge status={reg.status} />
+                        <select
+                          value={reg.status}
+                          onChange={(e) => updateLeadStatus(reg.id, e.target.value)}
+                          className="block w-full text-[10px] font-bold py-1 px-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 outline-none cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <option value="NUEVO">Cambiar: Nuevo</option>
+                          <option value="CONTACTADO">Cambiar: Contactado</option>
+                          <option value="DOC_PENDIENTE">Cambiar: Doc. Pendiente</option>
+                          <option value="COMPLETO">Cambiar: Completo</option>
+                          <option value="MATRICULADO">Cambiar: Matriculado</option>
+                          <option value="DESCARTADO">Cambiar: Descartado</option>
+                        </select>
+                      </div>
+                    </td>
+
+                    <td className="p-3.5 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {reg.whatsapp && (
+                          <a
+                            href={`https://wa.me/${reg.whatsapp.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 transition-colors"
+                            title="Contactar por WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+
+                        <button
+                          onClick={() => setSelectedRegistration(reg)}
+                          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 font-bold border border-blue-500/30 text-xs transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Expediente
                         </button>
-                      )}
+
+                        {userRole === 'ADMIN' && (
+                          <button
+                            onClick={() => deleteRegistration(reg.id)}
+                            className="p-2 rounded-xl bg-rose-600/10 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 transition-colors"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-500 italic">
-                    No se encontraron postulantes registrados con los filtros seleccionados.
+                  <td colSpan={7} className="p-8 text-center text-slate-500 italic">
+                    No se encontraron postulaciones registradas en este período.
                   </td>
                 </tr>
               )}
@@ -421,35 +484,31 @@ export default function RegistrationsPage() {
         </div>
 
         {/* Pagination Footer */}
-        {totalCount > PAGE_SIZE && (
-          <div className="px-4 py-3 bg-slate-800/40 border-t border-slate-800 flex items-center justify-between">
-            <p className="text-xs text-slate-400">
-              Mostrando <strong className="text-white">{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalCount)}</strong> de <strong className="text-white">{totalCount}</strong> registros
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(page - 1)}
-                disabled={page === 1}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-xs font-bold text-white px-2">
-                Pág. {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => handlePageChange(page + 1)}
-                disabled={page >= totalPages}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+        <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+          <p className="text-xs text-slate-400 font-medium">
+            Página <strong className="text-white">{page}</strong> de <strong className="text-white">{totalPages}</strong>
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page === 1 || isLoading}
+              onClick={() => handlePageChange(page - 1)}
+              className="px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 hover:text-white disabled:opacity-40 text-xs font-bold transition-colors"
+            >
+              Anterior
+            </button>
+            <button
+              disabled={page >= totalPages || isLoading}
+              onClick={() => handlePageChange(page + 1)}
+              className="px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 hover:text-white disabled:opacity-40 text-xs font-bold transition-colors"
+            >
+              Siguiente
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Detail Timeline Modal */}
+      {/* Modal Expediente */}
       <StatusTimelineModal
         isOpen={!!selectedRegistration}
         onClose={() => setSelectedRegistration(null)}

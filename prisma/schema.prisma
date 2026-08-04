@@ -4,41 +4,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-enum RoleName {
-  ADMIN
-  ASESOR
-}
-
-enum ProgramType {
-  CURSO
-  DIPLOMADO
-  MAESTRIA
-  ESPECIALIDAD
-  DOCTORADO
-}
-
-enum Modality {
-  PRESENCIAL
-  VIRTUAL
-  SEMIPRESENCIAL
-}
-
-enum RegistrationStatus {
-  NUEVO
-  CONTACTADO
-  DOC_PENDIENTE
-  COMPLETO
-  MATRICULADO
-  DESCARTADO
 }
 
 model Role {
   id        String   @id @default(uuid())
-  name      RoleName @unique
+  name      String   @unique
   users     User[]
   createdAt DateTime @default(now())
 }
@@ -66,13 +38,13 @@ model User {
 }
 
 model Program {
-  id          String      @id @default(uuid())
-  name        String      @unique
-  code        String      @unique
-  type        ProgramType @default(MAESTRIA)
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  type        String   @default("MAESTRIA")
   description String?
   imageUrl    String?
-  active      Boolean     @default(true)
+  active      Boolean  @default(true)
 
   links         Link[]
   registrations Registration[]
@@ -104,24 +76,29 @@ model Link {
 }
 
 model Registration {
-  id            String             @id @default(uuid())
+  id            String   @id @default(uuid())
   linkId        String?
-  link          Link?              @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  link          Link?    @relation(fields: [linkId], references: [id], onDelete: SetNull)
   advisorId     String
-  advisor       User               @relation(fields: [advisorId], references: [id], onDelete: Restrict)
+  advisor       User     @relation(fields: [advisorId], references: [id], onDelete: Restrict)
   programId     String
-  program       Program            @relation(fields: [programId], references: [id], onDelete: Restrict)
+  program       Program  @relation(fields: [programId], references: [id], onDelete: Restrict)
 
   // Personal Info
   fullName      String
+  firstName     String?
+  lastName      String?
   ci            String
   ciExpedition  String
   birthDate     DateTime
   age           Int
   gender        String
   civilStatus   String
+  ciAnversoUrl  String?
+  ciReversoUrl  String?
 
   // Contact Info
+  academicDegree String?
   profession    String
   university    String
   email         String
@@ -138,13 +115,13 @@ model Registration {
   experienceYears Int
 
   // Program & Modality
-  modality      Modality           @default(VIRTUAL)
+  modality      String   @default("VIRTUAL")
   channel       String
   notes         String?
-  termsAccepted Boolean            @default(true)
+  termsAccepted Boolean  @default(true)
 
   // Tracking & Status
-  status        RegistrationStatus @default(NUEVO)
+  status        String   @default("NUEVO")
   ipAddress     String?
 
   statusHistory StatusHistory[]
@@ -160,13 +137,13 @@ model Registration {
 }
 
 model StatusHistory {
-  id             String             @id @default(uuid())
+  id             String       @id @default(uuid())
   registrationId String
-  registration   Registration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  previousStatus RegistrationStatus
-  newStatus      RegistrationStatus
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  previousStatus String
+  newStatus      String
   changedById    String?
-  changedBy      User?              @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  changedBy      User?        @relation(fields: [changedById], references: [id], onDelete: SetNull)
   note           String?
 
   createdAt DateTime @default(now())

@@ -37,9 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Configuración inválida.' }, { status: 400 });
     }
 
-    const keys = ['datos_personales', 'documentos_ci', 'datos_contacto', 'datos_academicos'];
-    
-    for (const key of keys) {
+    for (const key of Object.keys(settings)) {
       const isMandatory = Boolean(settings[key]);
       await prisma.formSetting.upsert({
         where: { sectionKey: key },
@@ -53,7 +51,7 @@ export async function POST(req: NextRequest) {
         userId: user!.userId,
         action: 'FORM_SETTINGS_UPDATED',
         entity: 'FormSetting',
-        details: `Configuración de apartados del formulario actualizada por Administrador.`,
+        details: `Configuración de obligatoriedad del formulario pública actualizada por Administrador.`,
       },
     });
 

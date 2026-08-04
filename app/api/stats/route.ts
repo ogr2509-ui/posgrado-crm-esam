@@ -7,30 +7,48 @@ export async function GET(req: NextRequest) {
   if (response) return response;
 
   try {
+    const { searchParams } = new URL(req.url);
+    const monthParam = searchParams.get('month');
+    const yearParam = searchParams.get('year');
+
     const isAdvisor = user!.role !== 'ADMIN';
     const advisorCondition = isAdvisor ? { advisorId: user!.userId } : {};
 
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedYear = yearParam && yearParam !== 'ALL' ? parseInt(yearParam, 10) : now.getFullYear();
+    const selectedMonth = monthParam && monthParam !== 'ALL' ? parseInt(monthParam, 10) : (now.getMonth() + 1);
 
+    // Calculate start and end of selected month
+    const startOfSelectedMonth = new Date(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0);
+    const endOfSelectedMonth = new Date(selectedYear, selectedMonth, 0, 23, 59, 59, 999);
+
+    // Filter condition by selected month/year unless 'ALL'
+    const dateCondition = (monthParam === 'ALL' || yearParam === 'ALL')
+      ? {}
+      : { createdAt: { gte: startOfSelectedMonth, lte: endOfSelectedMonth } };
+
+    const filterCondition = {
+      ...advisorCondition,
+      ...dateCondition,
+    };
+
+    // KPI Counts
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    // Counts
     const [todayCount, weekCount, monthCount, totalCount] = await Promise.all([
       prisma.registration.count({ where: { ...advisorCondition, createdAt: { gte: startOfToday } } }),
       prisma.registration.count({ where: { ...advisorCondition, createdAt: { gte: startOfWeek } } }),
-      prisma.registration.count({ where: { ...advisorCondition, createdAt: { gte: startOfMonth } } }),
+      prisma.registration.count({ where: filterCondition }),
       prisma.registration.count({ where: advisorCondition }),
     ]);
 
-    // Status Funnel Breakdowns
+    // Status Funnel Breakdowns (filtered by selected month/year)
     const statusCounts = await prisma.registration.groupBy({
       by: ['status'],
-      where: advisorCondition,
+      where: filterCondition,
       _count: { status: true },
     });
 
@@ -47,10 +65,10 @@ export async function GET(req: NextRequest) {
       funnelMap[s.status] = s._count.status;
     });
 
-    // Registrations by Program
+    // Registrations by Program (filtered by selected month/year)
     const registrationsByProgramRaw = await prisma.registration.groupBy({
       by: ['programId'],
-      where: advisorCondition,
+      where: filterCondition,
       _count: { id: true },
     });
 
@@ -66,7 +84,7 @@ export async function GET(req: NextRequest) {
       count: p._count.id,
     }));
 
-    // Admin Specific Aggregates
+    // Admin Specific Aggregates (filtered by selected month/year)
     let topAdvisors: Array<{ id: string; name: string; email: string; totalLeads: number; matriculados: number }> = [];
 
     if (!isAdvisor) {
@@ -77,6 +95,7 @@ export async function GET(req: NextRequest) {
           name: true,
           email: true,
           registrations: {
+            where: dateCondition,
             select: { status: true },
           },
         },
@@ -105,6 +124,8 @@ export async function GET(req: NextRequest) {
         month: monthCount,
         total: totalCount,
       },
+      selectedMonth,
+      selectedYear,
       funnel: [
         { status: 'Nuevo', count: funnelMap.NUEVO, fill: '#3b82f6' },
         { status: 'Contactado', count: funnelMap.CONTACTADO, fill: '#6366f1' },
