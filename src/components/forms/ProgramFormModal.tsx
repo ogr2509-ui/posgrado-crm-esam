@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { Image as ImageIcon, Link as LinkIcon, X } from 'lucide-react';
 
 interface ProgramData {
   id?: string;
@@ -10,6 +11,7 @@ interface ProgramData {
   code: string;
   type: 'CURSO' | 'DIPLOMADO' | 'MAESTRIA' | 'ESPECIALIDAD' | 'DOCTORADO';
   description?: string;
+  imageUrl?: string;
   active: boolean;
 }
 
@@ -31,6 +33,7 @@ export function ProgramFormModal({
   const [code, setCode] = useState('');
   const [type, setType] = useState<'CURSO' | 'DIPLOMADO' | 'MAESTRIA' | 'ESPECIALIDAD' | 'DOCTORADO'>('MAESTRIA');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [active, setActive] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,12 +44,14 @@ export function ProgramFormModal({
       setCode(programToEdit.code || '');
       setType(programToEdit.type || 'MAESTRIA');
       setDescription(programToEdit.description || '');
+      setImageUrl(programToEdit.imageUrl || '');
       setActive(programToEdit.active ?? true);
     } else {
       setName('');
       setCode('');
       setType('MAESTRIA');
       setDescription('');
+      setImageUrl('');
       setActive(true);
     }
     setError(null);
@@ -64,7 +69,7 @@ export function ProgramFormModal({
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, code, type, description, active }),
+        body: JSON.stringify({ name, code, type, description, imageUrl, active }),
       });
 
       const data = await res.json();
@@ -72,7 +77,7 @@ export function ProgramFormModal({
 
       toast.success(
         programToEdit ? 'Programa actualizado' : 'Programa creado exitosamente',
-        `El programa "${name}" ha sido guardado correctamente.`
+        `El programa "${name}" ha sido guardado correctamente con su afiche.`
       );
       onProgramSaved();
     } catch (err: any) {
@@ -88,7 +93,7 @@ export function ProgramFormModal({
       isOpen={isOpen}
       onClose={onClose}
       title={programToEdit ? 'Editar Oferta Académica' : 'Nuevo Programa Académico'}
-      subtitle="Configure el nombre, código identificador y modalidad (Curso, Diplomado, Maestría, etc.)"
+      subtitle="Configure el nombre, código, imagen de afiche y modalidad (Curso, Diplomado, Maestría, etc.)"
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -158,6 +163,59 @@ export function ProgramFormModal({
           />
         </div>
 
+        {/* Image URL Field & Live Preview */}
+        <div>
+          <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <ImageIcon className="w-4 h-4 text-blue-500" />
+              Imagen del Afiche / Flayer Promocional (URL)
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">Se mostrará en el formulario público</span>
+          </label>
+          <div className="relative">
+            <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+            <input
+              type="text"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://ejemplo.com/afiche.png o /uploads/marketing_ia.png"
+              className="w-full pl-10 pr-9 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono text-[11px]"
+            />
+            {imageUrl && (
+              <button
+                type="button"
+                onClick={() => setImageUrl('')}
+                className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                title="Limpiar imagen"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Live Thumbnail Preview */}
+          {imageUrl && (
+            <div className="mt-2.5 p-2 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
+              <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-900 shrink-0 border border-slate-300 dark:border-slate-800">
+                <img
+                  src={imageUrl}
+                  alt="Vista previa del afiche"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 overflow-hidden">
+                <p className="font-semibold text-slate-900 dark:text-white truncate">Vista Previa del Afiche</p>
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  ✓ Imagen lista para el formulario de inscripción
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-2 pt-2">
           <input
             type="checkbox"
@@ -191,3 +249,4 @@ export function ProgramFormModal({
     </Modal>
   );
 }
+

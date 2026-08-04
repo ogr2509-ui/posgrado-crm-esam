@@ -7,7 +7,9 @@ export const programSchema = z.object({
     required_error: 'Selecciona el tipo de programa.',
   }),
   description: z.string().optional(),
+  imageUrl: z.string().optional().nullable(),
   active: z.boolean().default(true),
 });
 
 export type ProgramFormData = z.infer<typeof programSchema>;
+

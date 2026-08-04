@@ -221,6 +221,16 @@ export default function ProgramsPage() {
                   </button>
                 </div>
 
+                {prog.imageUrl && (
+                  <div className="mt-3 w-full h-32 rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                    <img
+                      src={prog.imageUrl}
+                      alt={prog.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                )}
+
                 <h3 className="text-sm font-bold text-white mt-3 leading-tight group-hover:text-blue-400 transition-colors">
                   {prog.name}
                 </h3>

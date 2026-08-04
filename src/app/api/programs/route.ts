@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
         code: validated.code,
         type: validated.type,
         description: validated.description,
+        imageUrl: validated.imageUrl,
         active: validated.active ?? true,
       },
     });
