@@ -46,6 +46,7 @@ process.env.DATABASE_URL = dbUrl;
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   seededPromise: Promise<void> | undefined;
+  memorySnapshot: any | undefined;
 };
 
 export const prisma =
@@ -62,6 +63,45 @@ export const prisma =
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 const SNAPSHOT_FILE = path.join('/tmp', 'db_snapshot.json');
+const CLOUD_SYNC_ID = 'ff8081819f7e10ae019fce2a5eaf7408';
+const CLOUD_SYNC_URL = `https://api.restful-api.dev/objects/${CLOUD_SYNC_ID}`;
+
+export async function syncSnapshotToCloud(snapshot: any) {
+  try {
+    const payload = JSON.stringify({
+      name: 'posgrado-crm-database-snapshot',
+      data: snapshot,
+    });
+
+    await fetch(CLOUD_SYNC_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: payload,
+    });
+  } catch (err) {
+    console.error('Error syncing snapshot to cloud persistence:', err);
+  }
+}
+
+export async function fetchSnapshotFromCloud(): Promise<any | null> {
+  try {
+    const res = await fetch(CLOUD_SYNC_URL, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      return json.data || null;
+    }
+  } catch (err) {
+    console.error('Error fetching snapshot from cloud persistence:', err);
+  }
+  return null;
+}
 
 export async function saveDatabaseSnapshot() {
   try {
@@ -69,6 +109,7 @@ export async function saveDatabaseSnapshot() {
     const users = await prisma.user.findMany();
     const programs = await prisma.program.findMany();
     const links = await prisma.link.findMany();
+    const registrations = await prisma.registration.findMany();
     const formSettings = await prisma.formSetting.findMany();
 
     const snapshot = {
@@ -76,22 +117,45 @@ export async function saveDatabaseSnapshot() {
       users,
       programs,
       links,
+      registrations,
       formSettings,
       updatedAt: new Date().toISOString(),
     };
 
-    fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify(snapshot, null, 2), 'utf-8');
+    globalForPrisma.memorySnapshot = snapshot;
+
+    try {
+      fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify(snapshot, null, 2), 'utf-8');
+    } catch (e) {}
+
+    // Async sync to cloud persistence so data is never lost across serverless containers
+    syncSnapshotToCloud(snapshot).catch(e => console.error('Cloud sync error:', e));
   } catch (err) {
     console.error('Error saving database snapshot:', err);
   }
 }
 
 export async function restoreDatabaseSnapshot() {
-  if (!fs.existsSync(SNAPSHOT_FILE)) return;
-
   try {
-    const raw = fs.readFileSync(SNAPSHOT_FILE, 'utf-8');
-    const snapshot = JSON.parse(raw);
+    let snapshot = globalForPrisma.memorySnapshot;
+
+    if (!snapshot) {
+      if (fs.existsSync(SNAPSHOT_FILE)) {
+        try {
+          const raw = fs.readFileSync(SNAPSHOT_FILE, 'utf-8');
+          snapshot = JSON.parse(raw);
+        } catch (e) {}
+      }
+    }
+
+    if (!snapshot) {
+      snapshot = await fetchSnapshotFromCloud();
+      if (snapshot) {
+        globalForPrisma.memorySnapshot = snapshot;
+      }
+    }
+
+    if (!snapshot) return;
 
     if (snapshot.roles && Array.isArray(snapshot.roles)) {
       for (const r of snapshot.roles) {
@@ -173,6 +237,55 @@ export async function restoreDatabaseSnapshot() {
             clickCount: l.clickCount,
           },
         });
+      }
+    }
+
+    if (snapshot.registrations && Array.isArray(snapshot.registrations)) {
+      for (const reg of snapshot.registrations) {
+        try {
+          await prisma.registration.upsert({
+            where: { id: reg.id },
+            update: {
+              status: reg.status,
+            },
+            create: {
+              id: reg.id,
+              linkId: reg.linkId,
+              advisorId: reg.advisorId,
+              programId: reg.programId,
+              fullName: reg.fullName,
+              firstName: reg.firstName,
+              lastName: reg.lastName,
+              ci: reg.ci,
+              ciExpedition: reg.ciExpedition,
+              birthDate: new Date(reg.birthDate),
+              age: reg.age,
+              gender: reg.gender,
+              civilStatus: reg.civilStatus,
+              ciAnversoUrl: reg.ciAnversoUrl,
+              ciReversoUrl: reg.ciReversoUrl,
+              academicDegree: reg.academicDegree,
+              profession: reg.profession,
+              university: reg.university,
+              email: reg.email,
+              phone: reg.phone,
+              whatsapp: reg.whatsapp,
+              address: reg.address,
+              city: reg.city,
+              state: reg.state,
+              country: reg.country,
+              company: reg.company,
+              position: reg.position,
+              experienceYears: reg.experienceYears,
+              modality: reg.modality,
+              channel: reg.channel,
+              notes: reg.notes,
+              termsAccepted: reg.termsAccepted,
+              status: reg.status,
+              ipAddress: reg.ipAddress,
+            },
+          });
+        } catch (regErr) {}
       }
     }
   } catch (e) {
