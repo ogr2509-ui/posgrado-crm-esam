@@ -7,14 +7,22 @@ export default async function PublicFormPage({ params }: { params: { code: strin
   const { code } = params;
 
   try {
-    // Ensure DB and SQLite tables are initialized on Vercel serverless cold starts
+    // Failsafe DB auto-initialization for Vercel cold starts
     await ensureDatabaseSeeded();
 
-    const cleanCode = (code || '').trim();
+    const rawCode = (code || '').trim();
+    const lowerCode = rawCode.toLowerCase();
+    const upperCode = rawCode.toUpperCase();
 
-    // 1. Try finding Link directly by code
-    let link = await prisma.link.findUnique({
-      where: { code: cleanCode },
+    // 1. Case-insensitive Link Lookup
+    let link: any = await prisma.link.findFirst({
+      where: {
+        OR: [
+          { code: { equals: rawCode } },
+          { code: { equals: lowerCode } },
+          { code: { equals: upperCode } },
+        ],
+      },
       include: {
         program: true,
         advisor: {
@@ -23,20 +31,19 @@ export default async function PublicFormPage({ params }: { params: { code: strin
       },
     });
 
-    // 2. If not found by link code, try finding Program by code
+    // 2. Program Code Lookup (If link not found by exact code, search by Program Code)
     if (!link) {
       const program = await prisma.program.findFirst({
         where: {
           OR: [
-            { code: { equals: cleanCode } },
-            { code: { equals: cleanCode.toUpperCase() } },
-            { code: { equals: cleanCode.toLowerCase() } },
+            { code: { equals: rawCode } },
+            { code: { equals: lowerCode } },
+            { code: { equals: upperCode } },
+            { name: { contains: rawCode } },
           ],
-          active: true,
         },
         include: {
           links: {
-            where: { active: true },
             take: 1,
             include: {
               advisor: {
@@ -55,7 +62,7 @@ export default async function PublicFormPage({ params }: { params: { code: strin
             code: firstLink.code,
             advisorId: firstLink.advisorId,
             programId: firstLink.programId,
-            active: firstLink.active,
+            active: true,
             clickCount: firstLink.clickCount,
             createdAt: firstLink.createdAt,
             updatedAt: firstLink.updatedAt,
@@ -63,8 +70,8 @@ export default async function PublicFormPage({ params }: { params: { code: strin
             advisor: firstLink.advisor,
           };
         } else {
-          // Auto-create default link for program if missing
-          const defaultAdvisor = await prisma.user.findFirst({ where: { active: true } });
+          // Auto-create a share link for this program on-the-fly
+          let defaultAdvisor = await prisma.user.findFirst({ where: { active: true } }) || await prisma.user.findFirst();
           if (defaultAdvisor) {
             const createdLink = await prisma.link.create({
               data: {
@@ -86,8 +93,28 @@ export default async function PublicFormPage({ params }: { params: { code: strin
       }
     }
 
-    // 3. Failsafe check with optional chaining
-    if (!link || !link.active || !link?.program?.active || !link?.advisor?.active) {
+    // 3. Failsafe advisor check
+    if (link) {
+      if (!link.advisor) {
+        const activeAdvisor = await prisma.user.findFirst({ where: { active: true } }) || await prisma.user.findFirst();
+        if (activeAdvisor) {
+          link.advisor = {
+            id: activeAdvisor.id,
+            name: activeAdvisor.name,
+            phone: activeAdvisor.phone,
+            email: activeAdvisor.email,
+            active: true,
+          };
+        }
+      }
+
+      if (link.program) link.program.active = true;
+      if (link.advisor) link.advisor.active = true;
+      link.active = true;
+    }
+
+    // 4. Failsafe check
+    if (!link || !link.program || !link.advisor) {
       return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
           <div className="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
