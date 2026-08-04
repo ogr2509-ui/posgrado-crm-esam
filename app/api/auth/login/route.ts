@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureDatabaseSeeded } from '@/lib/db';
 import { comparePassword, signToken } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Failsafe auto-seeding for Vercel / serverless deployments
+    await ensureDatabaseSeeded();
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
