@@ -128,8 +128,8 @@ export async function saveDatabaseSnapshot() {
       fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify(snapshot, null, 2), 'utf-8');
     } catch (e) {}
 
-    // Async sync to cloud persistence so data is never lost across serverless containers
-    syncSnapshotToCloud(snapshot).catch(e => console.error('Cloud sync error:', e));
+    // Await cloud sync so data is committed to cloud BEFORE API response finishes
+    await syncSnapshotToCloud(snapshot);
   } catch (err) {
     console.error('Error saving database snapshot:', err);
   }
