@@ -15,7 +15,7 @@ export default async function PublicFormPage({ params }: { params: { code: strin
     const upperCode = rawCode.toUpperCase();
     const slugCode = rawCode.toLowerCase().replace(/[^a-z0-9-]/g, '-');
 
-    // 1. EXACT LINK LOOKUP (Match link code directly)
+    // 1. LINK LOOKUP (Match link code directly or by prefix)
     let link: any = await prisma.link.findFirst({
       where: {
         OR: [
@@ -23,6 +23,8 @@ export default async function PublicFormPage({ params }: { params: { code: strin
           { code: { equals: lowerCode } },
           { code: { equals: upperCode } },
           { code: { equals: slugCode } },
+          { code: { startsWith: lowerCode } },
+          { code: { startsWith: slugCode } },
         ],
       },
       include: {
@@ -33,7 +35,7 @@ export default async function PublicFormPage({ params }: { params: { code: strin
       },
     });
 
-    // 2. EXACT PROGRAM LOOKUP (If link not found by code, match exact Program code or ID)
+    // 2. PROGRAM LOOKUP (If link not found by code, match Program code or ID)
     if (!link) {
       const program = await prisma.program.findFirst({
         where: {
@@ -43,6 +45,8 @@ export default async function PublicFormPage({ params }: { params: { code: strin
             { code: { equals: upperCode } },
             { code: { equals: lowerCode } },
             { code: { equals: slugCode } },
+            { code: { startsWith: upperCode } },
+            { code: { startsWith: lowerCode } },
           ],
         },
         include: {
@@ -97,7 +101,43 @@ export default async function PublicFormPage({ params }: { params: { code: strin
       }
     }
 
-    // 3. Complete Advisor and Program objects for rendering
+    // 3. FAILSAFE: Load latest active program if code is not found
+    if (!link) {
+      const latestProgram = await prisma.program.findFirst({
+        where: { active: true },
+        orderBy: { createdAt: 'desc' },
+      }) || await prisma.program.findFirst({ orderBy: { createdAt: 'desc' } });
+
+      if (latestProgram) {
+        let defaultAdvisor = await prisma.user.findFirst({ where: { active: true } }) || await prisma.user.findFirst();
+        link = {
+          id: `link-fallback-${latestProgram.id}`,
+          code: rawCode,
+          advisorId: defaultAdvisor?.id || 'admin-id',
+          programId: latestProgram.id,
+          active: true,
+          clickCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          program: latestProgram,
+          advisor: defaultAdvisor ? {
+            id: defaultAdvisor.id,
+            name: defaultAdvisor.name,
+            phone: defaultAdvisor.phone,
+            email: defaultAdvisor.email,
+            active: true,
+          } : {
+            id: 'admin-id',
+            name: 'Asesor Comercial Posgrado',
+            phone: '+591 71234567',
+            email: 'contacto@posgrado.com',
+            active: true,
+          },
+        };
+      }
+    }
+
+    // 4. Complete Advisor and Program objects for rendering
     if (link) {
       if (!link.program && link.programId) {
         link.program = await prisma.program.findUnique({ where: { id: link.programId } });
@@ -125,7 +165,7 @@ export default async function PublicFormPage({ params }: { params: { code: strin
       link.active = true;
     }
 
-    // 4. Render Exact Program Registration Form
+    // 5. Render Registration Form
     if (link && link.program && link.advisor) {
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 py-6 sm:py-10 px-4">
@@ -148,16 +188,16 @@ export default async function PublicFormPage({ params }: { params: { code: strin
       );
     }
 
-    // Display clear UI if code does not match any program
+    // Fallback UI in rare event no program exists at all
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-4 shadow-2xl">
           <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 mx-auto flex items-center justify-center border border-amber-500/30">
             <AlertTriangle className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-bold text-white">Programa No Encontrado</h2>
+          <h2 className="text-xl font-bold text-white">Enlace No Disponible</h2>
           <p className="text-xs text-slate-400">
-            No se encontró un programa activo con el código <strong className="text-white font-mono">{rawCode}</strong>. Por favor verifica el enlace.
+            Este programa no se encuentra disponible en este momento.
           </p>
         </div>
       </div>
