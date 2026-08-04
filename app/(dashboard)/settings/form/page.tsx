@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SlidersHorizontal, CheckCircle2, ShieldCheck, Save, Loader2 } from 'lucide-react';
-import { Toast } from '@/components/ui/Toast';
+import { useToast } from '@/components/ui/Toast';
 
 interface FormSettings {
   datos_personales: boolean;
@@ -43,6 +43,7 @@ const SECTIONS = [
 ];
 
 export default function FormSettingsPage() {
+  const { success, error: toastError } = useToast();
   const [settings, setSettings] = useState<FormSettings>({
     datos_personales: true,
     documentos_ci: true,
@@ -51,7 +52,6 @@ export default function FormSettingsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -91,9 +91,9 @@ export default function FormSettingsPage() {
 
       if (!res.ok) throw new Error('Error al guardar la configuración');
 
-      setToastMessage('Configuración del formulario guardada exitosamente.');
+      success('Configuración Guardada', 'La configuración del formulario se actualizó exitosamente.');
     } catch (error: any) {
-      setToastMessage(error.message || 'Error de conexión');
+      toastError('Error al guardar', error.message || 'Error de conexión');
     } finally {
       setIsSaving(false);
     }

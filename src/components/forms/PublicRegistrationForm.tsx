@@ -533,5 +533,7 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
       </div>
     </form>
     </div>
+    </div>
   );
 }
+
