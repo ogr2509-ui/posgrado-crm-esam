@@ -75,13 +75,29 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validated = programSchema.parse(body);
 
-    const existingCode = await prisma.program.findUnique({
-      where: { code: validated.code },
+    const existingCode = await prisma.program.findFirst({
+      where: {
+        OR: [
+          { code: { equals: validated.code.trim().toUpperCase() } },
+          { code: { equals: validated.code.trim() } }
+        ]
+      },
     });
 
     if (existingCode) {
       return NextResponse.json(
         { error: 'Ya existe un programa registrado con ese código identificador.' },
+        { status: 400 }
+      );
+    }
+
+    const existingName = await prisma.program.findFirst({
+      where: { name: { equals: validated.name.trim() } },
+    });
+
+    if (existingName) {
+      return NextResponse.json(
+        { error: 'Ya existe un programa o curso registrado con ese nombre. Por favor ingresa un nombre único.' },
         { status: 400 }
       );
     }
