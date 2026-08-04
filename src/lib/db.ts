@@ -3,13 +3,17 @@ import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 
-function getVercelDatabaseUrl(): string {
-  const isVercel = Boolean(
+function isVercelEnvironment(): boolean {
+  return Boolean(
     process.env.VERCEL ||
     process.env.NEXT_PUBLIC_VERCEL_ENV ||
     process.env.NOW_REGION ||
     process.env.AWS_LAMBDA_FUNCTION_NAME
   );
+}
+
+function getVercelDatabaseUrl(): string {
+  const isVercel = isVercelEnvironment();
 
   if (isVercel) {
     const tmpDbPath = path.join('/tmp', 'dev.db');
@@ -433,7 +437,7 @@ export async function ensureDatabaseSeeded() {
       } catch (err: any) {}
 
       if (userCount === 0) {
-        console.log('Seeding initial Vercel production database...');
+        console.log('Seeding initial production database...');
         const hashedPasswordAdmin = await bcrypt.hash('Admin123!', 10);
         const hashedPasswordAdvisor = await bcrypt.hash('Asesor123!', 10);
 
@@ -569,8 +573,10 @@ export async function ensureDatabaseSeeded() {
         }
       }
 
-      // Restore snapshot if available to persist custom programs and links across containers
-      await restoreDatabaseSnapshot();
+      // Restore cloud snapshot ONLY on Vercel serverless environment to prevent overwriting local dev.db
+      if (isVercelEnvironment()) {
+        await restoreDatabaseSnapshot();
+      }
     } catch (e) {
       console.error('Error auto-seeding database:', e);
     }
