@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Lock, Mail, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Sparkles, Lock, Mail, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@posgrado.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -32,16 +32,6 @@ export default function LoginPage() {
       setError(err.message);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fillDemoAccount = (type: 'ADMIN' | 'ASESOR') => {
-    if (type === 'ADMIN') {
-      setEmail('admin@posgrado.com');
-      setPassword('Admin123!');
-    } else {
-      setEmail('juan.perez@posgrado.com');
-      setPassword('Asesor123!');
     }
   };
 
@@ -114,31 +104,9 @@ export default function LoginPage() {
               {!isLoading && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>
-
-          {/* Demo Account Quick Select */}
-          <div className="pt-4 border-t border-slate-800/80 space-y-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
-              Acceso Rápido Demo:
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <button
-                type="button"
-                onClick={() => fillDemoAccount('ADMIN')}
-                className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50 font-medium transition-colors"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemoAccount('ASESOR')}
-                className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50 font-medium transition-colors"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-indigo-400" /> Asesor (Juan)
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
   );
 }
+
