@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma, ensureDatabaseSeeded } from '@/lib/db';
+import { prisma, ensureDatabaseSeeded, saveDatabaseSnapshot } from '@/lib/db';
 import { authorizeRequest } from '@/lib/middleware';
 import { programSchema } from '@/lib/validations/program';
 import crypto from 'crypto';
@@ -120,15 +120,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: advisorIdToUse,
-        action: 'PROGRAM_CREATED',
-        entity: 'Program',
-        entityId: program.id,
-        details: `Programa "${program.name}" (${program.code}) creado por Admin con enlace de compartir (${createdLink.code})`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: advisorIdToUse,
+          action: 'PROGRAM_CREATED',
+          entity: 'Program',
+          entityId: program.id,
+          details: `Programa "${program.name}" (${program.code}) creado por Admin con enlace de compartir (${createdLink.code})`,
+        },
+      });
+    } catch (e) {}
+
+    // Save snapshot so program persists across serverless lambda containers
+    await saveDatabaseSnapshot();
 
     const programWithLink = {
       ...program,

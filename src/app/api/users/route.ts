@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma, ensureDatabaseSeeded } from '@/lib/db';
+import { prisma, ensureDatabaseSeeded, saveDatabaseSnapshot } from '@/lib/db';
 import { authorizeRequest } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 import { userSchema } from '@/lib/validations/user';
@@ -107,6 +107,9 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.error('AuditLog error ignored:', e);
     }
+
+    // Save snapshot so newly created users persist across lambda containers
+    await saveDatabaseSnapshot();
 
     return NextResponse.json({ message: 'Usuario creado exitosamente.', user: newUser }, { status: 201 });
   } catch (error: any) {

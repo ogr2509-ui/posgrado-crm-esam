@@ -61,6 +61,125 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+const SNAPSHOT_FILE = path.join('/tmp', 'db_snapshot.json');
+
+export async function saveDatabaseSnapshot() {
+  try {
+    const roles = await prisma.role.findMany();
+    const users = await prisma.user.findMany();
+    const programs = await prisma.program.findMany();
+    const links = await prisma.link.findMany();
+    const formSettings = await prisma.formSetting.findMany();
+
+    const snapshot = {
+      roles,
+      users,
+      programs,
+      links,
+      formSettings,
+      updatedAt: new Date().toISOString(),
+    };
+
+    fs.writeFileSync(SNAPSHOT_FILE, JSON.stringify(snapshot, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving database snapshot:', err);
+  }
+}
+
+export async function restoreDatabaseSnapshot() {
+  if (!fs.existsSync(SNAPSHOT_FILE)) return;
+
+  try {
+    const raw = fs.readFileSync(SNAPSHOT_FILE, 'utf-8');
+    const snapshot = JSON.parse(raw);
+
+    if (snapshot.roles && Array.isArray(snapshot.roles)) {
+      for (const r of snapshot.roles) {
+        await prisma.role.upsert({
+          where: { id: r.id },
+          update: { name: r.name },
+          create: { id: r.id, name: r.name },
+        });
+      }
+    }
+
+    if (snapshot.users && Array.isArray(snapshot.users)) {
+      for (const u of snapshot.users) {
+        await prisma.user.upsert({
+          where: { id: u.id },
+          update: {
+            name: u.name,
+            email: u.email,
+            password: u.password,
+            phone: u.phone,
+            active: u.active,
+            roleId: u.roleId,
+          },
+          create: {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            password: u.password,
+            phone: u.phone,
+            active: u.active,
+            roleId: u.roleId,
+          },
+        });
+      }
+    }
+
+    if (snapshot.programs && Array.isArray(snapshot.programs)) {
+      for (const p of snapshot.programs) {
+        await prisma.program.upsert({
+          where: { id: p.id },
+          update: {
+            name: p.name,
+            code: p.code,
+            type: p.type,
+            description: p.description,
+            imageUrl: p.imageUrl,
+            active: p.active,
+          },
+          create: {
+            id: p.id,
+            name: p.name,
+            code: p.code,
+            type: p.type,
+            description: p.description,
+            imageUrl: p.imageUrl,
+            active: p.active,
+          },
+        });
+      }
+    }
+
+    if (snapshot.links && Array.isArray(snapshot.links)) {
+      for (const l of snapshot.links) {
+        await prisma.link.upsert({
+          where: { id: l.id },
+          update: {
+            code: l.code,
+            advisorId: l.advisorId,
+            programId: l.programId,
+            active: l.active,
+            clickCount: l.clickCount,
+          },
+          create: {
+            id: l.id,
+            code: l.code,
+            advisorId: l.advisorId,
+            programId: l.programId,
+            active: l.active,
+            clickCount: l.clickCount,
+          },
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error restoring snapshot:', e);
+  }
+}
+
 export async function ensureDatabaseSeeded() {
   if (globalForPrisma.seededPromise) {
     return globalForPrisma.seededPromise;
@@ -68,7 +187,7 @@ export async function ensureDatabaseSeeded() {
 
   globalForPrisma.seededPromise = (async () => {
     try {
-      // 1. Programmatically ensure SQLite tables exist via RAW SQL (Failsafe for Vercel)
+      // 1. Ensure SQLite tables exist
       const createTablesSQL = [
         `CREATE TABLE IF NOT EXISTS "Role" (
           "id" TEXT NOT NULL PRIMARY KEY,
@@ -191,157 +310,154 @@ export async function ensureDatabaseSeeded() {
       for (const query of createTablesSQL) {
         try {
           await prisma.$executeRawUnsafe(query);
-        } catch (e) {
-          // Table might already exist
-        }
+        } catch (e) {}
       }
 
-      // 2. Check if DB has users
+      // Check if DB has users
       let userCount = 0;
       try {
         userCount = await prisma.user.count();
-      } catch (err: any) {
-        console.log('User count check skipped.');
-      }
+      } catch (err: any) {}
 
-      if (userCount > 0) return;
+      if (userCount === 0) {
+        console.log('Seeding initial Vercel production database...');
+        const hashedPasswordAdmin = await bcrypt.hash('Admin123!', 10);
+        const hashedPasswordAdvisor = await bcrypt.hash('Asesor123!', 10);
 
-      console.log('Seeding initial Vercel production database...');
-      const hashedPasswordAdmin = await bcrypt.hash('Admin123!', 10);
-      const hashedPasswordAdvisor = await bcrypt.hash('Asesor123!', 10);
-
-      // Create Roles
-      const adminRole = await prisma.role.upsert({
-        where: { name: 'ADMIN' },
-        update: {},
-        create: { name: 'ADMIN' },
-      });
-
-      const asesorRole = await prisma.role.upsert({
-        where: { name: 'ASESOR' },
-        update: {},
-        create: { name: 'ASESOR' },
-      });
-
-      // Create Users
-      const adminUser = await prisma.user.upsert({
-        where: { email: 'admin@posgrado.com' },
-        update: { password: hashedPasswordAdmin, roleId: adminRole.id, active: true },
-        create: {
-          name: 'Administrador Principal',
-          email: 'admin@posgrado.com',
-          password: hashedPasswordAdmin,
-          phone: '+591 71234567',
-          roleId: adminRole.id,
-          active: true,
-        },
-      });
-
-      const juanAdvisor = await prisma.user.upsert({
-        where: { email: 'juan.perez@posgrado.com' },
-        update: { password: hashedPasswordAdvisor, roleId: asesorRole.id, active: true },
-        create: {
-          name: 'Juan Pérez',
-          email: 'juan.perez@posgrado.com',
-          password: hashedPasswordAdvisor,
-          phone: '+591 79876543',
-          roleId: asesorRole.id,
-          active: true,
-        },
-      });
-
-      const mariaAdvisor = await prisma.user.upsert({
-        where: { email: 'maria.lopez@posgrado.com' },
-        update: { password: hashedPasswordAdvisor, roleId: asesorRole.id, active: true },
-        create: {
-          name: 'María López',
-          email: 'maria.lopez@posgrado.com',
-          password: hashedPasswordAdvisor,
-          phone: '+591 78901234',
-          roleId: asesorRole.id,
-          active: true,
-        },
-      });
-
-      const carlosAdvisor = await prisma.user.upsert({
-        where: { email: 'carlos.ruiz@posgrado.com' },
-        update: { password: hashedPasswordAdvisor, roleId: asesorRole.id, active: true },
-        create: {
-          name: 'Carlos Ruiz',
-          email: 'carlos.ruiz@posgrado.com',
-          password: hashedPasswordAdvisor,
-          phone: '+591 77654321',
-          roleId: asesorRole.id,
-          active: true,
-        },
-      });
-
-      // Create Initial Programs
-      const programsData = [
-        {
-          name: 'Maestría en Marketing Digital e Inteligencia Artificial',
-          code: 'MMD-IA-2026',
-          type: 'MAESTRIA',
-          description: 'Especialización avanzada en estrategias de marketing impulsadas por IA y análisis predictivo de datos.',
-        },
-        {
-          name: 'Maestría en Educación Superior y Gestión del Conocimiento',
-          code: 'MES-GC-2026',
-          type: 'MAESTRIA',
-          description: 'Formación de alto nivel para docentes universitarios e investigadores en educación contemporánea.',
-        },
-        {
-          name: 'Diplomado en Gerencia de Proyectos bajo Enfoque PMBOK',
-          code: 'DGP-PMI-2026',
-          type: 'DIPLOMADO',
-          description: 'Programa ejecutivo enfocado en la certificación PMP y metodologías ágiles de gestión de proyectos.',
-        },
-      ];
-
-      for (const prog of programsData) {
-        const program = await prisma.program.upsert({
-          where: { code: prog.code },
+        // Create Roles
+        const adminRole = await prisma.role.upsert({
+          where: { name: 'ADMIN' },
           update: {},
-          create: prog,
+          create: { name: 'ADMIN' },
         });
 
-        // Create links for Advisors
-        const linkCodeJuan = `${program.code.toLowerCase()}-juan`;
-        await prisma.link.upsert({
-          where: { code: linkCodeJuan },
+        const asesorRole = await prisma.role.upsert({
+          where: { name: 'ASESOR' },
           update: {},
+          create: { name: 'ASESOR' },
+        });
+
+        // Create Users
+        const adminUser = await prisma.user.upsert({
+          where: { email: 'admin@posgrado.com' },
+          update: { password: hashedPasswordAdmin, roleId: adminRole.id, active: true },
           create: {
-            code: linkCodeJuan,
-            advisorId: juanAdvisor.id,
-            programId: program.id,
+            name: 'Administrador Principal',
+            email: 'admin@posgrado.com',
+            password: hashedPasswordAdmin,
+            phone: '+591 71234567',
+            roleId: adminRole.id,
             active: true,
           },
         });
 
-        const linkCodeMaria = `${program.code.toLowerCase()}-maria`;
-        await prisma.link.upsert({
-          where: { code: linkCodeMaria },
-          update: {},
+        const juanAdvisor = await prisma.user.upsert({
+          where: { email: 'juan.perez@posgrado.com' },
+          update: { password: hashedPasswordAdvisor, roleId: asesorRole.id, active: true },
           create: {
-            code: linkCodeMaria,
-            advisorId: mariaAdvisor.id,
-            programId: program.id,
+            name: 'Juan Pérez',
+            email: 'juan.perez@posgrado.com',
+            password: hashedPasswordAdvisor,
+            phone: '+591 79876543',
+            roleId: asesorRole.id,
             active: true,
           },
         });
-      }
 
-      // Initialize default FormSettings
-      const sectionKeys = ['datos_personales', 'documentos_ci', 'datos_contacto', 'datos_academicos'];
-      for (const key of sectionKeys) {
-        await prisma.formSetting.upsert({
-          where: { sectionKey: key },
-          update: {},
-          create: { sectionKey: key, isMandatory: true },
+        const mariaAdvisor = await prisma.user.upsert({
+          where: { email: 'maria.lopez@posgrado.com' },
+          update: { password: hashedPasswordAdvisor, roleId: asesorRole.id, active: true },
+          create: {
+            name: 'María López',
+            email: 'maria.lopez@posgrado.com',
+            password: hashedPasswordAdvisor,
+            phone: '+591 78901234',
+            roleId: asesorRole.id,
+            active: true,
+          },
         });
+
+        const carlosAdvisor = await prisma.user.upsert({
+          where: { email: 'carlos.ruiz@posgrado.com' },
+          update: { password: hashedPasswordAdvisor, roleId: asesorRole.id, active: true },
+          create: {
+            name: 'Carlos Ruiz',
+            email: 'carlos.ruiz@posgrado.com',
+            password: hashedPasswordAdvisor,
+            phone: '+591 77654321',
+            roleId: asesorRole.id,
+            active: true,
+          },
+        });
+
+        // Create Initial Programs
+        const programsData = [
+          {
+            name: 'Maestría en Marketing Digital e Inteligencia Artificial',
+            code: 'MMD-IA-2026',
+            type: 'MAESTRIA',
+            description: 'Especialización avanzada en estrategias de marketing impulsadas por IA y análisis predictivo de datos.',
+          },
+          {
+            name: 'Maestría en Educación Superior y Gestión del Conocimiento',
+            code: 'MES-GC-2026',
+            type: 'MAESTRIA',
+            description: 'Formación de alto nivel para docentes universitarios e investigadores en educación contemporánea.',
+          },
+          {
+            name: 'Diplomado en Gerencia de Proyectos bajo Enfoque PMBOK',
+            code: 'DGP-PMI-2026',
+            type: 'DIPLOMADO',
+            description: 'Programa ejecutivo enfocado en la certificación PMP y metodologías ágiles de gestión de proyectos.',
+          },
+        ];
+
+        for (const prog of programsData) {
+          const program = await prisma.program.upsert({
+            where: { code: prog.code },
+            update: {},
+            create: prog,
+          });
+
+          // Create links for Advisors
+          const linkCodeJuan = `${program.code.toLowerCase()}-juan`;
+          await prisma.link.upsert({
+            where: { code: linkCodeJuan },
+            update: {},
+            create: {
+              code: linkCodeJuan,
+              advisorId: juanAdvisor.id,
+              programId: program.id,
+              active: true,
+            },
+          });
+
+          const linkCodeMaria = `${program.code.toLowerCase()}-maria`;
+          await prisma.link.upsert({
+            where: { code: linkCodeMaria },
+            update: {},
+            create: {
+              code: linkCodeMaria,
+              advisorId: mariaAdvisor.id,
+              programId: program.id,
+              active: true,
+            },
+          });
+        }
+
+        // Initialize default FormSettings
+        const sectionKeys = ['datos_personales', 'documentos_ci', 'datos_contacto', 'datos_academicos'];
+        for (const key of sectionKeys) {
+          await prisma.formSetting.upsert({
+            where: { sectionKey: key },
+            update: {},
+            create: { sectionKey: key, isMandatory: true },
+          });
+        }
       }
 
-      console.log('Database auto-seeded successfully!');
+      // Restore snapshot if available to persist custom programs and links across containers
+      await restoreDatabaseSnapshot();
     } catch (e) {
       console.error('Error auto-seeding database:', e);
     }
