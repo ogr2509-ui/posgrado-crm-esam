@@ -1,10 +1,47 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
-// Failsafe fallback for Vercel deployment if DATABASE_URL environment variable is missing or malformed
-if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith('file:')) {
-  process.env.DATABASE_URL = 'file:./dev.db';
+function getVercelDatabaseUrl(): string {
+  const isVercel = Boolean(
+    process.env.VERCEL ||
+    process.env.NEXT_PUBLIC_VERCEL_ENV ||
+    process.env.NOW_REGION ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME
+  );
+
+  if (isVercel) {
+    const tmpDbPath = path.join('/tmp', 'dev.db');
+
+    if (!fs.existsSync(tmpDbPath)) {
+      try {
+        const rootDbPath = path.join(process.cwd(), 'prisma', 'dev.db');
+        const altDbPath = path.join(process.cwd(), 'dev.db');
+
+        if (fs.existsSync(rootDbPath)) {
+          fs.copyFileSync(rootDbPath, tmpDbPath);
+        } else if (fs.existsSync(altDbPath)) {
+          fs.copyFileSync(altDbPath, tmpDbPath);
+        } else {
+          fs.writeFileSync(tmpDbPath, '');
+        }
+      } catch (err) {
+        console.error('Error preparing /tmp/dev.db on Vercel:', err);
+      }
+    }
+    return `file:${tmpDbPath}`;
+  }
+
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:')) {
+    return process.env.DATABASE_URL;
+  }
+
+  return 'file:./dev.db';
 }
+
+const dbUrl = getVercelDatabaseUrl();
+process.env.DATABASE_URL = dbUrl;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -14,6 +51,11 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: {
+      db: {
+        url: dbUrl,
+      },
+    },
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 
