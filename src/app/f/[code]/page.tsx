@@ -14,8 +14,12 @@ export default async function PublicFormPage({ params }: { params: { code: strin
     const lowerCode = rawCode.toLowerCase();
     const upperCode = rawCode.toUpperCase();
     const slugCode = rawCode.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const spaceCode = rawCode.replace(/-/g, ' ');
+    const spaceUpper = upperCode.replace(/-/g, ' ');
+    const hyphenUpper = upperCode.replace(/\s+/g, '-');
+    const hyphenLower = lowerCode.replace(/\s+/g, '-');
 
-    // 1. LINK LOOKUP: Find link matching code directly or by prefix
+    // 1. LINK LOOKUP: Find link matching code or space/hyphen variations
     let link: any = await prisma.link.findFirst({
       where: {
         OR: [
@@ -23,8 +27,11 @@ export default async function PublicFormPage({ params }: { params: { code: strin
           { code: { equals: lowerCode } },
           { code: { equals: upperCode } },
           { code: { equals: slugCode } },
+          { code: { equals: hyphenLower } },
+          { code: { equals: spaceCode } },
           { code: { startsWith: lowerCode } },
           { code: { startsWith: slugCode } },
+          { code: { startsWith: hyphenLower } },
         ],
       },
       include: {
@@ -35,7 +42,7 @@ export default async function PublicFormPage({ params }: { params: { code: strin
       },
     });
 
-    // 2. PROGRAM LOOKUP: If link not found by code, match exact Program code, ID or slug
+    // 2. PROGRAM LOOKUP: If link not found by code, match Program by code (with spaces/hyphens) or ID
     if (!link) {
       const program = await prisma.program.findFirst({
         where: {
@@ -45,6 +52,11 @@ export default async function PublicFormPage({ params }: { params: { code: strin
             { code: { equals: upperCode } },
             { code: { equals: lowerCode } },
             { code: { equals: slugCode } },
+            { code: { equals: hyphenUpper } },
+            { code: { equals: spaceUpper } },
+            { code: { equals: spaceCode } },
+            { code: { startsWith: upperCode } },
+            { code: { startsWith: lowerCode } },
           ],
         },
         include: {
@@ -82,7 +94,7 @@ export default async function PublicFormPage({ params }: { params: { code: strin
 
           const createdLink = await prisma.link.create({
             data: {
-              code: `${program.code.toLowerCase()}-link`,
+              code: `${program.code.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-link`,
               programId: program.id,
               advisorId: advisorIdToUse,
               active: true,
