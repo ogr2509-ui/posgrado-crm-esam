@@ -14,8 +14,6 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-let isSeeding = false;
-
 export async function ensureDatabaseSeeded() {
   if (globalForPrisma.seededPromise) {
     return globalForPrisma.seededPromise;
@@ -23,12 +21,140 @@ export async function ensureDatabaseSeeded() {
 
   globalForPrisma.seededPromise = (async () => {
     try {
-      // Check if DB tables are initialized
+      // 1. Programmatically ensure SQLite tables exist via RAW SQL (Failsafe for Vercel)
+      const createTablesSQL = [
+        `CREATE TABLE IF NOT EXISTS "Role" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL UNIQUE,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );`,
+
+        `CREATE TABLE IF NOT EXISTS "User" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "email" TEXT NOT NULL UNIQUE,
+          "password" TEXT NOT NULL,
+          "phone" TEXT,
+          "active" BOOLEAN NOT NULL DEFAULT 1,
+          "roleId" TEXT NOT NULL,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("roleId") REFERENCES "Role" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+        );`,
+
+        `CREATE TABLE IF NOT EXISTS "Program" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL UNIQUE,
+          "code" TEXT NOT NULL UNIQUE,
+          "type" TEXT NOT NULL DEFAULT 'MAESTRIA',
+          "description" TEXT,
+          "imageUrl" TEXT,
+          "active" BOOLEAN NOT NULL DEFAULT 1,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );`,
+
+        `CREATE TABLE IF NOT EXISTS "Link" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "code" TEXT NOT NULL UNIQUE,
+          "advisorId" TEXT NOT NULL,
+          "programId" TEXT NOT NULL,
+          "active" BOOLEAN NOT NULL DEFAULT 1,
+          "clickCount" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("advisorId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+          FOREIGN KEY ("programId") REFERENCES "Program" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );`,
+
+        `CREATE TABLE IF NOT EXISTS "Registration" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "linkId" TEXT,
+          "advisorId" TEXT NOT NULL,
+          "programId" TEXT NOT NULL,
+          "fullName" TEXT NOT NULL,
+          "firstName" TEXT,
+          "lastName" TEXT,
+          "ci" TEXT NOT NULL,
+          "ciExpedition" TEXT NOT NULL,
+          "birthDate" DATETIME NOT NULL,
+          "age" INTEGER NOT NULL,
+          "gender" TEXT NOT NULL,
+          "civilStatus" TEXT NOT NULL,
+          "ciAnversoUrl" TEXT,
+          "ciReversoUrl" TEXT,
+          "academicDegree" TEXT,
+          "profession" TEXT NOT NULL,
+          "university" TEXT NOT NULL,
+          "email" TEXT NOT NULL,
+          "phone" TEXT NOT NULL,
+          "whatsapp" TEXT NOT NULL,
+          "address" TEXT NOT NULL,
+          "city" TEXT NOT NULL,
+          "state" TEXT NOT NULL,
+          "country" TEXT NOT NULL,
+          "company" TEXT NOT NULL,
+          "position" TEXT NOT NULL,
+          "experienceYears" INTEGER NOT NULL,
+          "modality" TEXT NOT NULL DEFAULT 'VIRTUAL',
+          "channel" TEXT NOT NULL,
+          "notes" TEXT,
+          "termsAccepted" BOOLEAN NOT NULL DEFAULT 1,
+          "status" TEXT NOT NULL DEFAULT 'NUEVO',
+          "ipAddress" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("linkId") REFERENCES "Link" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+          FOREIGN KEY ("advisorId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+          FOREIGN KEY ("programId") REFERENCES "Program" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+        );`,
+
+        `CREATE TABLE IF NOT EXISTS "StatusHistory" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "registrationId" TEXT NOT NULL,
+          "previousStatus" TEXT NOT NULL,
+          "newStatus" TEXT NOT NULL,
+          "changedById" TEXT,
+          "note" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("registrationId") REFERENCES "Registration" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+          FOREIGN KEY ("changedById") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+        );`,
+
+        `CREATE TABLE IF NOT EXISTS "AuditLog" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "action" TEXT NOT NULL,
+          "entity" TEXT NOT NULL,
+          "entityId" TEXT,
+          "details" TEXT,
+          "ipAddress" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+        );`,
+
+        `CREATE TABLE IF NOT EXISTS "FormSetting" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "sectionKey" TEXT NOT NULL UNIQUE,
+          "isMandatory" BOOLEAN NOT NULL DEFAULT 1,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );`,
+      ];
+
+      for (const query of createTablesSQL) {
+        try {
+          await prisma.$executeRawUnsafe(query);
+        } catch (e) {
+          // Table might already exist
+        }
+      }
+
+      // 2. Check if DB has users
       let userCount = 0;
       try {
         userCount = await prisma.user.count();
       } catch (err: any) {
-        console.log('Database tables not ready or empty. Initializing via db push...');
+        console.log('User count check skipped.');
       }
 
       if (userCount > 0) return;
