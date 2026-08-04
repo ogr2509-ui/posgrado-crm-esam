@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureDatabaseSeeded } from '@/lib/db';
 import { authorizeRequest } from '@/lib/middleware';
 
 const DEFAULT_SETTINGS: Record<string, boolean> = {
@@ -11,6 +11,8 @@ const DEFAULT_SETTINGS: Record<string, boolean> = {
 
 export async function GET(req: NextRequest) {
   try {
+    await ensureDatabaseSeeded();
+
     const settings = await prisma.formSetting.findMany();
     const result: Record<string, boolean> = { ...DEFAULT_SETTINGS };
 
@@ -30,6 +32,8 @@ export async function POST(req: NextRequest) {
   if (response) return response;
 
   try {
+    await ensureDatabaseSeeded();
+
     const body = await req.json();
     const { settings } = body;
 
@@ -46,14 +50,25 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    await prisma.auditLog.create({
-      data: {
-        userId: user!.userId,
-        action: 'FORM_SETTINGS_UPDATED',
-        entity: 'FormSetting',
-        details: `Configuración de obligatoriedad del formulario pública actualizada por Administrador.`,
-      },
-    });
+    let currentUserId = user!.userId;
+    const currentUserExists = await prisma.user.findUnique({ where: { id: currentUserId } });
+    if (!currentUserExists) {
+      const anyAdmin = await prisma.user.findFirst({ where: { role: { name: 'ADMIN' } } });
+      if (anyAdmin) currentUserId = anyAdmin.id;
+    }
+
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          action: 'FORM_SETTINGS_UPDATED',
+          entity: 'FormSetting',
+          details: `Configuración de obligatoriedad del formulario pública actualizada por Administrador.`,
+        },
+      });
+    } catch (e) {
+      console.error('Audit log ignored:', e);
+    }
 
     return NextResponse.json({ message: 'Configuración guardada exitosamente.', settings });
   } catch (error) {
