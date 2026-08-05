@@ -1,14 +1,26 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const SUPABASE_DB_URL = "postgresql://postgres:Gonza250900.@db.pjykahdqkmolglethdxs.supabase.co:5432/postgres";
+// =====================================================================
+// SUPABASE POSTGRESQL CONNECTION CONFIGURATION
+// =====================================================================
+// DATABASE_URL: Transaction pooler on port 6543 (required for Vercel serverless)
+// DIRECT_URL:   Direct connection on port 5432 (used only for local migrations)
+//
+// Vercel and all serverless runtimes MUST use the pooler URL (port 6543).
+// Direct connections (port 5432) are blocked by Vercel's internal network.
+// =====================================================================
+const SUPABASE_POOLER_URL =
+  "postgresql://postgres.pjykahdqkmolglethdxs:Gonza250900.@aws-0-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true";
+const SUPABASE_DIRECT_URL =
+  "postgresql://postgres:Gonza250900.@db.pjykahdqkmolglethdxs.supabase.co:5432/postgres";
 
-if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith('postgres')) {
-  process.env.DATABASE_URL = SUPABASE_DB_URL;
-}
-if (!process.env.DIRECT_URL || !process.env.DIRECT_URL.startsWith('postgres')) {
-  process.env.DIRECT_URL = SUPABASE_DB_URL;
-}
+// Force the correct pooler URL at runtime. This guarantees both
+// local dev and Vercel always connect correctly regardless of .env state.
+const dbUrl =
+  process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgresql://postgres.pjykahdqkmolglethdxs')
+    ? process.env.DATABASE_URL
+    : SUPABASE_POOLER_URL;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -20,7 +32,7 @@ export const prisma =
   new PrismaClient({
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: dbUrl,
       },
     },
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
@@ -28,9 +40,8 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-export async function saveDatabaseSnapshot() {
-  // No-op for cloud PostgreSQL database
-}
+// No-op: Supabase PostgreSQL persists data natively — no snapshot needed.
+export async function saveDatabaseSnapshot() {}
 
 export async function ensureDatabaseSeeded() {
   if (globalForPrisma.seededPromise) {
@@ -42,7 +53,10 @@ export async function ensureDatabaseSeeded() {
       let userCount = 0;
       try {
         userCount = await prisma.user.count();
-      } catch (err: any) {}
+      } catch (err: any) {
+        console.error('DB connection check failed:', err.message);
+        return;
+      }
 
       if (userCount === 0) {
         console.log('Seeding initial Supabase PostgreSQL database...');
@@ -62,7 +76,7 @@ export async function ensureDatabaseSeeded() {
           create: { name: 'ASESOR' },
         });
 
-        // Create Users
+        // Create Admin User
         const adminUser = await prisma.user.upsert({
           where: { email: 'admin@posgrado.com' },
           update: { password: hashedPasswordAdmin, roleId: adminRole.id, active: true },
@@ -76,6 +90,7 @@ export async function ensureDatabaseSeeded() {
           },
         });
 
+        // Create Advisor Users
         const juanAdvisor = await prisma.user.upsert({
           where: { email: 'juan.perez@posgrado.com' },
           update: { password: hashedPasswordAdvisor, roleId: asesorRole.id, active: true },
@@ -144,7 +159,6 @@ export async function ensureDatabaseSeeded() {
             create: prog,
           });
 
-          // Create links for Advisors
           const linkCodeJuan = `${program.code.toLowerCase()}-juan`;
           await prisma.link.upsert({
             where: { code: linkCodeJuan },
@@ -179,6 +193,8 @@ export async function ensureDatabaseSeeded() {
             create: { sectionKey: key, isMandatory: true },
           });
         }
+
+        console.log('Initial seeding completed successfully.');
       }
     } catch (e) {
       console.error('Error auto-seeding database:', e);
