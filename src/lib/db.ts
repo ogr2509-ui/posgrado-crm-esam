@@ -1,6 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+const SUPABASE_DB_URL = "postgresql://postgres:Gonza250900.@db.pjykahdqkmolglethdxs.supabase.co:5432/postgres";
+
+if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith('postgres')) {
+  process.env.DATABASE_URL = SUPABASE_DB_URL;
+}
+if (!process.env.DIRECT_URL || !process.env.DIRECT_URL.startsWith('postgres')) {
+  process.env.DIRECT_URL = SUPABASE_DB_URL;
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   seededPromise: Promise<void> | undefined;
@@ -9,6 +18,11 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 
