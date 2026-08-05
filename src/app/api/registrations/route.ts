@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authorizeRequest } from '@/lib/middleware';
-import { RegistrationStatus } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   const { user, response } = await authorizeRequest(req);
@@ -30,7 +29,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (status && status !== 'ALL') {
-      where.status = status as RegistrationStatus;
+      where.status = status;
     }
 
     if (search && search.trim() !== '') {
