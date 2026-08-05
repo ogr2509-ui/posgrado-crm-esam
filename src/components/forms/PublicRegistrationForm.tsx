@@ -221,53 +221,46 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 w-full overflow-x-hidden px-1 sm:px-4">
-      {/* Header Banner with Title on Left and Program Description / Plan de Estudios on Right */}
-      <div className="p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border border-slate-800 shadow-2xl relative overflow-hidden">
+      {/* Centered Header Banner */}
+      <div className="p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 border border-slate-800 shadow-2xl text-center space-y-3 sm:space-y-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-72 h-72 sm:w-96 sm:h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-72 h-72 sm:w-96 sm:h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center relative z-10">
-          {/* Left Side: Program Badges, Name, Advisor */}
-          <div className="lg:col-span-7 space-y-3 text-left">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-blue-600/20 text-blue-400 text-xs font-black uppercase tracking-wider border border-blue-500/30 flex items-center gap-1.5">
-                <Award className="w-3.5 h-3.5" /> {program.type}
-              </span>
-              <span className="text-xs text-slate-400 font-mono">CÓDIGO: {program.code}</span>
-            </div>
+        <div className="flex items-center justify-center flex-wrap gap-2 relative z-10">
+          <span className="px-3 py-1 rounded-full bg-blue-600/20 text-blue-400 text-xs font-black uppercase tracking-wider border border-blue-500/30 flex items-center gap-1.5">
+            <Award className="w-3.5 h-3.5" /> {program.type}
+          </span>
+          <span className="text-xs text-slate-400 font-mono">CÓDIGO: {program.code}</span>
+        </div>
 
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight leading-snug">
-              {program.name}
-            </h1>
+        <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-white text-center tracking-tight leading-snug sm:leading-tight max-w-4xl mx-auto relative z-10 px-2">
+          {program.name}
+        </h1>
 
-            <div className="pt-1">
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-full bg-slate-950/80 border border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-300 shadow-md max-w-full">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span className="text-slate-400">Asesor Comercial Asignado:</span>
-                <strong className="text-white font-bold">{advisor.name}</strong>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Side: Descripción o Plan de Estudios Sintético */}
-          <div className="lg:col-span-5">
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-xl space-y-2 relative group hover:border-blue-500/40 transition-colors">
-              <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider border-b border-slate-800/80 pb-2">
-                <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
-                <span>Descripción & Plan de Estudios Sintético</span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed font-normal whitespace-pre-line max-h-48 overflow-y-auto pr-1">
-                {program.description || 'Programa de posgrado diseñado para potenciar tu perfil profesional con un plan de estudios enfocado en competencias avanzadas y metodologías aplicadas.'}
-              </p>
-            </div>
+        <div className="pt-1 sm:pt-2 relative z-10">
+          <div className="inline-flex items-center justify-center flex-wrap gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-slate-950/80 border border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-300 shadow-md max-w-full">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-slate-400">Asesor Comercial Asignado:</span>
+            <strong className="text-white font-bold">{advisor.name}</strong>
           </div>
         </div>
       </div>
 
       {/* Responsive Split 2-Column Screen Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-        {/* LEFT COLUMN: Vertical Promotional Image */}
+        {/* LEFT COLUMN: Descripción Box & Promotional Image */}
         <div className="lg:col-span-5 lg:sticky lg:top-8 space-y-4">
+          {/* Descripción Box (Directly above the photo) */}
+          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-2 text-left">
+            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-2 flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-blue-400" /> Descripción
+            </h3>
+            <p className="text-xs text-slate-300 leading-relaxed font-normal whitespace-pre-line">
+              {program.description || 'Programa de posgrado diseñado para potenciar tu perfil profesional.'}
+            </p>
+          </div>
+
+          {/* Vertical Promotional Image */}
           <div className="rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden p-2 sm:p-3">
             {program.imageUrl ? (
               <div className="relative w-full rounded-xl sm:rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950 shadow-inner flex flex-col items-center justify-center p-1">
@@ -287,9 +280,6 @@ export function PublicRegistrationForm({ code, program, advisor }: PublicRegistr
                     {program.type}
                   </span>
                   <h3 className="text-base sm:text-lg font-bold text-white leading-tight">{program.name}</h3>
-                  <p className="text-xs text-slate-400">
-                    {program.description || 'Programa de posgrado diseñado para potenciar tu perfil profesional.'}
-                  </p>
                 </div>
               </div>
             )}
