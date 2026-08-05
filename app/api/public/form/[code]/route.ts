@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, ensureDatabaseSeeded, saveDatabaseSnapshot } from '@/lib/db';
 import { registrationSchema } from '@/lib/validations/registration';
-import { RegistrationStatus, Modality } from '@prisma/client';
+
 import { CRMIntegrationService } from '@/lib/crm-service';
 
 async function getLinkByCode(code: string) {
