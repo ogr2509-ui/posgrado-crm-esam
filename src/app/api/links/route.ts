@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       let programLink: any;
 
       if (isAdmin) {
-        // Admin sees the first/generic link for each program
+        // Admin sees all links or the primary link
         programLink = await prisma.link.findFirst({
           where: { programId: prog.id },
           orderBy: { createdAt: 'asc' },
@@ -54,14 +54,13 @@ export async function GET(req: NextRequest) {
         let baseCode = prog.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
         let linkCode = baseCode;
 
-        // If not admin, append a suffix based on advisor identity to avoid collisions
+        // Append a short hash suffix based on advisorId to guarantee uniqueness per advisor
         if (!isAdmin) {
-          // Use short hash of advisorId to personalize the code
           const suffix = crypto.createHash('md5').update(advisorIdToUse).digest('hex').substring(0, 4);
           linkCode = `${baseCode}-${suffix}`;
         }
 
-        // Ensure the code is unique in the database
+        // Ensure uniqueness in database
         const existingCode = await prisma.link.findUnique({ where: { code: linkCode } });
         if (existingCode) {
           linkCode = `${linkCode}-${crypto.randomBytes(3).toString('hex')}`;
@@ -106,7 +105,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { programId } = body;
+    const { programId, advisorId } = body;
 
     if (!programId) {
       return NextResponse.json({ error: 'Debes seleccionar un programa académico.' }, { status: 400 });
@@ -118,9 +117,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'El programa no existe o está inactivo.' }, { status: 404 });
     }
 
+    const targetAdvisorId = (user?.role === 'ADMIN' && advisorId) ? advisorId : user!.userId;
+
     // Check if THIS advisor already has a link for this program
     const existingLink = await prisma.link.findFirst({
-      where: { programId: program.id, advisorId: user!.userId },
+      where: { programId: program.id, advisorId: targetAdvisorId },
       include: {
         program: { select: { id: true, name: true, code: true, type: true } },
         advisor: { select: { id: true, name: true, email: true, phone: true } },
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
 
     // Generate a personal link code for this advisor+program
     let baseCode = program.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-    const suffix = crypto.createHash('md5').update(user!.userId).digest('hex').substring(0, 4);
+    const suffix = crypto.createHash('md5').update(targetAdvisorId).digest('hex').substring(0, 4);
     let code = `${baseCode}-${suffix}`;
 
     const existingCode = await prisma.link.findUnique({ where: { code } });
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
       data: {
         code,
         programId: program.id,
-        advisorId: user!.userId,
+        advisorId: targetAdvisorId,
         active: true,
       },
       include: {
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
           action: 'LINK_CREATED',
           entity: 'Link',
           entityId: link.id,
-          details: `Enlace personal (${link.code}) generado para el programa ${program.name} por ${link.advisor?.name}`,
+          details: `Enlace personal (${link.code}) generado para el programa ${program.name} asignado a ${link.advisor?.name}`,
         },
       });
     } catch (e) {}
