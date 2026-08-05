@@ -8,32 +8,60 @@ export async function GET(req: NextRequest) {
   if (response) return response;
 
   try {
-    // Both advisors and admins view all active program links (admin sees inactive ones too)
-    const programWhere = user?.role === 'ADMIN' ? {} : { active: true };
+    const isAdmin = user?.role === 'ADMIN';
 
-    // Get all programs with their links
+    // Only fetch active programs for advisors; admins see everything
     const programs = await prisma.program.findMany({
-      where: programWhere,
+      where: isAdmin ? {} : { active: true },
       orderBy: { createdAt: 'desc' },
-      include: {
-        links: {
-          take: 1,
+    });
+
+    const links: any[] = [];
+
+    for (const prog of programs) {
+      let programLink: any;
+
+      if (isAdmin) {
+        // Admin sees the first/generic link for each program
+        programLink = await prisma.link.findFirst({
+          where: { programId: prog.id },
           orderBy: { createdAt: 'asc' },
           include: {
             advisor: { select: { id: true, name: true, email: true, phone: true } },
             _count: { select: { registrations: true } },
           },
-        },
-      },
-    });
+        });
+      } else {
+        // ADVISOR: look for their OWN personal link for this program
+        programLink = await prisma.link.findFirst({
+          where: {
+            programId: prog.id,
+            advisorId: user!.userId,
+          },
+          orderBy: { createdAt: 'asc' },
+          include: {
+            advisor: { select: { id: true, name: true, email: true, phone: true } },
+            _count: { select: { registrations: true } },
+          },
+        });
+      }
 
-    // Ensure all programs have a Link
-    const links: any[] = [];
-    for (const prog of programs) {
-      let programLink = prog.links[0];
-
+      // If no personal link exists for this advisor+program, create one automatically
       if (!programLink) {
-        let linkCode = prog.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const advisorIdToUse = user!.userId;
+
+        // Generate a unique link code specific to this advisor
+        let baseCode = prog.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        let linkCode = baseCode;
+
+        // If not admin, append a suffix based on advisor identity to avoid collisions
+        if (!isAdmin) {
+          // Use short hash of advisorId to personalize the code
+          const suffix = crypto.createHash('md5').update(advisorIdToUse).digest('hex').substring(0, 4);
+          linkCode = `${baseCode}-${suffix}`;
+        }
+
+        // Ensure the code is unique in the database
         const existingCode = await prisma.link.findUnique({ where: { code: linkCode } });
         if (existingCode) {
           linkCode = `${linkCode}-${crypto.randomBytes(3).toString('hex')}`;
@@ -43,7 +71,7 @@ export async function GET(req: NextRequest) {
           data: {
             code: linkCode,
             programId: prog.id,
-            advisorId: user!.userId,
+            advisorId: advisorIdToUse,
             active: true,
           },
           include: {
@@ -55,7 +83,13 @@ export async function GET(req: NextRequest) {
 
       links.push({
         ...programLink,
-        program: { id: prog.id, name: prog.name, code: prog.code, type: prog.type, active: prog.active },
+        program: {
+          id: prog.id,
+          name: prog.name,
+          code: prog.code,
+          type: prog.type,
+          active: prog.active,
+        },
       });
     }
 
@@ -78,17 +112,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Debes seleccionar un programa académico.' }, { status: 400 });
     }
 
-    const program = await prisma.program.findUnique({
-      where: { id: programId },
-    });
+    const program = await prisma.program.findUnique({ where: { id: programId } });
 
     if (!program || !program.active) {
       return NextResponse.json({ error: 'El programa no existe o está inactivo.' }, { status: 404 });
     }
 
-    // Check if link for this program already exists
-    let existingLink = await prisma.link.findFirst({
-      where: { programId: program.id },
+    // Check if THIS advisor already has a link for this program
+    const existingLink = await prisma.link.findFirst({
+      where: { programId: program.id, advisorId: user!.userId },
       include: {
         program: { select: { id: true, name: true, code: true, type: true } },
         advisor: { select: { id: true, name: true, email: true, phone: true } },
@@ -101,8 +133,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Enlace del programa obtenido.', link: existingLink });
     }
 
-    // Generate link if none exists
-    let code = program.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    // Generate a personal link code for this advisor+program
+    let baseCode = program.code.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const suffix = crypto.createHash('md5').update(user!.userId).digest('hex').substring(0, 4);
+    let code = `${baseCode}-${suffix}`;
+
     const existingCode = await prisma.link.findUnique({ where: { code } });
     if (existingCode) {
       code = `${code}-${crypto.randomBytes(3).toString('hex')}`;
@@ -122,15 +157,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: user!.userId,
-        action: 'LINK_CREATED',
-        entity: 'Link',
-        entityId: link.id,
-        details: `Enlace único (${link.code}) generado para el programa ${program.name}`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: user!.userId,
+          action: 'LINK_CREATED',
+          entity: 'Link',
+          entityId: link.id,
+          details: `Enlace personal (${link.code}) generado para el programa ${program.name} por ${link.advisor?.name}`,
+        },
+      });
+    } catch (e) {}
 
     return NextResponse.json({ message: 'Enlace generado exitosamente.', link }, { status: 201 });
   } catch (error) {
